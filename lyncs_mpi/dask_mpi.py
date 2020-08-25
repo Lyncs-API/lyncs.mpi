@@ -15,12 +15,15 @@ import signal
 import atexit
 import tempfile
 import multiprocessing
+from functools import wraps
 import sh
 from dask_mpi import initialize
 from dask.distributed import Client as _Client
 from dask.distributed import default_client as _default_client
+from .lib import default_comm
 
 
+@wraps(_default_client)
 def default_client():
     client = _default_client()
     assert isinstance(client, Client), "No MPI client found"
@@ -236,4 +239,117 @@ class Client(_Client):
             comm = default_comm()
             return comm.Create_group(comm.group.Incl(ranks))
 
-        return self.map(_create_comm, ranks, actor=actor)
+        return Comm(self.map(_create_comm, ranks, actor=actor))
+
+
+class Comm:
+    "MPI communicator"
+
+    __slots__ = [
+        "_comms",
+        "_ranks",
+        "_workers",
+    ]
+
+    def __init__(self, comms):
+        self._comms = tuple(comms)
+        self._ranks = self.client.map(lambda comm: comm.rank, self)
+        self._ranks = tuple(_.result() for _ in self._ranks)
+        self._workers = tuple(map(next,map(iter,map(self.client.who_has, self))))
+
+    @property
+    def client(self):
+        "Client of the communicator"
+        return self._comms[0].client
+
+    @property
+    def size(self):
+        "Size of the communicator"
+        return len(self)
+
+    @property
+    def ranks(self):
+        "Ranks of the communicator with respective worker"
+        return dict(zip(self._ranks, self._workers))
+
+    @property
+    def workers(self):
+        "Workers of the communicator with respective rank"
+        return dict(zip(self._workers, self._ranks))
+
+    def create_cart(self, dims, periods=None, reorder=False):
+        """
+        Makes a new communicator to which topology information has been attached
+
+        Parameters
+        ----------
+        dims: list
+            integer array specifying the number of processes in each dimension
+        periods: boolean [list]
+            logical [array] specifying whether the grid is periodic (True) or not (False) [in each dimension]
+        reorder: boolean
+            ranking may be reordered (True) or not (False)
+        """
+        return Cartcomm(
+            self.client.map(
+                lambda comm: comm.Create_cart(dims, periods=periods, reorder=reorder),
+                self,
+            )
+        )
+
+    def __getitem__(self, key):
+        if isinstance(key, int) and key in self._ranks:
+            return self._comms[self._ranks.index(key)]
+        if isinstance(key, str) and key in self._workers:
+            return self._comms[self._workers.index(key)]
+        raise KeyError(f"{key} is neither a rank or a worker of {self}")
+
+    def __len__(self):
+        return len(self._comms)
+
+    def __iter__(self):
+        return iter(self._comms)
+
+
+class Cartcomm(Comm):
+    "Cartesian communicator"
+
+    __slots__ = [
+        "_dims",
+        "_periods",
+        "_coords",
+    ]
+
+    def __init__(self, comms):
+        super().__init__(comms)
+        topos = self.client.map(lambda comm: comm.Get_topo(), self)
+        topos = tuple(_.result() for _ in topos)
+        self._dims = tuple(topos[0][0])
+        self._periods = tuple(topos[0][1])
+        self._periods = tuple(bool(_) for _ in self._periods)
+        self._coords = tuple(tuple(topo[2]) for topo in topos)
+
+    @property
+    def dims(self):
+        "Dimensions of the cartesian communicator"
+        return self._dims
+
+    @property
+    def periods(self):
+        "Periodicity of the cartesian communicator"
+        return self._periods
+
+    @property
+    def ranks_coords(self):
+        "Coordinates of the ranks of the cartesian communicator"
+        return dict(zip(self._ranks, self._coords))
+
+    @property
+    def workers_coords(self):
+        "Coordinates of the workers of the cartesian communicator"
+        return dict(zip(self._workers, self._coords))
+
+    def __getitem__(self, key):
+        if isinstance(key, tuple) and key in self._coords:
+            return self._comms[self._coords.index(key)]
+        return super().__getitem__(key)
