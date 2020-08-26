@@ -255,7 +255,7 @@ class Comm:
         self._comms = tuple(comms)
         self._ranks = self.client.map(lambda comm: comm.rank, self)
         self._ranks = tuple(_.result() for _ in self._ranks)
-        self._workers = tuple(map(next,map(iter,map(self.client.who_has, self))))
+        self._workers = tuple(map(next, map(iter, map(self.client.who_has, self))))
 
     @property
     def client(self):
@@ -281,7 +281,6 @@ class Comm:
     def ranks_worker(self):
         "Mapping between ranks and workers"
         return dict(zip(self._ranks, self._workers))
-        
 
     def create_cart(self, dims, periods=None, reorder=False):
         """
@@ -349,7 +348,7 @@ class Cartcomm(Comm):
     def coords(self):
         "Coordinates of the cartesian communicator"
         return self._coords
-    
+
     @property
     def ranks_coords(self):
         "Coordinates of the ranks of the cartesian communicator"
