@@ -4,6 +4,7 @@ requirements = [
     "mpi4py",
     "lyncs-cppyy",
     "dask",
+    "distributed",
     "dask[array]",
     "dask[distributed]",
     "dask-mpi",
