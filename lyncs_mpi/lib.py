@@ -1,3 +1,5 @@
+"Loading and using MPI via cppyy"
+
 __all__ = [
     "lib",
     "default_comm",
@@ -25,8 +27,9 @@ COMM = None
 
 
 def default_comm():
+    "Returns the default communicator to be used (MPI_COMM_WORLD by default)"
+    # pylint: disable=import-outside-toplevel,no-name-in-module,redefined-outer-name,global-statement
     global COMM
-    # pylint: disable=import-outside-toplevel,no-name-in-module,redefined-outer-name
     if not COMM:
         from mpi4py.MPI import COMM_WORLD as COMM
 
@@ -34,22 +37,26 @@ def default_comm():
 
 
 def initialized():
+    "Whether MPI has been initialized"
     val = c_int(0)
     lib.MPI_Initialized(val)
     return bool(val)
 
 
 def finalized():
+    "Whether MPI has been finalized"
     val = c_int(0)
     lib.MPI_Finalized(val)
     return bool(val)
 
 
 def initialize():
+    "Initializes MPI"
     assert not initialized() and not finalized()
     lib.MPI_Init(nullptr, nullptr)
 
 
 def finalize():
+    "Finalizes MPI"
     assert initialized() and not finalized()
     lib.MPI_Finalize()

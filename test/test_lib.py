@@ -1,4 +1,4 @@
-from lyncs_mpi import *
+from lyncs_mpi import initialized, initialize, finalize, finalized
 
 
 def test_init():

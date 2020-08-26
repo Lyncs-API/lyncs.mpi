@@ -16,7 +16,6 @@ import atexit
 import tempfile
 import multiprocessing
 from functools import wraps
-import sh
 from dask_mpi import initialize
 from dask.distributed import Client as _Client
 from dask.distributed import default_client as _default_client
@@ -25,6 +24,7 @@ from .lib import default_comm
 
 @wraps(_default_client)
 def default_client():
+    "Returns the default client"
     client = _default_client()
     assert isinstance(client, Client), "No MPI client found"
     return client
@@ -44,6 +44,7 @@ class Client(_Client):
         if launch is None:
             launch = default_comm().size == 1
 
+        # pylint: disable=import-outside-toplevel,
         if not launch:
             # Then the script has been submitted in parallel with mpirun
             num_workers = num_workers or default_comm().size - 1
@@ -63,6 +64,8 @@ class Client(_Client):
             _Client.__init__(self)
 
         else:
+            import sh
+
             num_workers = num_workers or (multiprocessing.cpu_count() + 1)
 
             # Since dask-mpi produces several file we create a temporary directory
@@ -164,7 +167,7 @@ class Client(_Client):
     ):
         """
         Selects `num_workers` from the one available.
-        
+
         Parameters
         ----------
         workers: list, default all
@@ -291,7 +294,7 @@ class Comm:
         dims: list
             integer array specifying the number of processes in each dimension
         periods: boolean [list]
-            logical [array] specifying whether the grid is periodic (True) or not (False) [in each dimension]
+            logical [array] specifying whether the grid is periodic (True) or not (False)
         reorder: boolean
             ranking may be reordered (True) or not (False)
         """
