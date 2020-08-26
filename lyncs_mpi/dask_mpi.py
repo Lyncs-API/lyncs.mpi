@@ -270,12 +270,18 @@ class Comm:
     @property
     def ranks(self):
         "Ranks of the communicator with respective worker"
-        return dict(zip(self._ranks, self._workers))
+        return self._ranks
 
     @property
     def workers(self):
         "Workers of the communicator with respective rank"
-        return dict(zip(self._workers, self._ranks))
+        return self._workers
+
+    @property
+    def ranks_worker(self):
+        "Mapping between ranks and workers"
+        return dict(zip(self._ranks, self._workers))
+        
 
     def create_cart(self, dims, periods=None, reorder=False):
         """
@@ -298,10 +304,10 @@ class Comm:
         )
 
     def __getitem__(self, key):
-        if isinstance(key, int) and key in self._ranks:
-            return self._comms[self._ranks.index(key)]
-        if isinstance(key, str) and key in self._workers:
-            return self._comms[self._workers.index(key)]
+        if isinstance(key, int) and key in self.ranks:
+            return self._comms[self.ranks.index(key)]
+        if isinstance(key, str) and key in self.workers:
+            return self._comms[self.workers.index(key)]
         raise KeyError(f"{key} is neither a rank or a worker of {self}")
 
     def __len__(self):
@@ -340,16 +346,16 @@ class Cartcomm(Comm):
         return self._periods
 
     @property
+    def coords(self):
+        "Coordinates of the cartesian communicator"
+        return self._coords
+    
+    @property
     def ranks_coords(self):
         "Coordinates of the ranks of the cartesian communicator"
-        return dict(zip(self._ranks, self._coords))
-
-    @property
-    def workers_coords(self):
-        "Coordinates of the workers of the cartesian communicator"
-        return dict(zip(self._workers, self._coords))
+        return dict(zip(self.ranks, self.coords))
 
     def __getitem__(self, key):
-        if isinstance(key, tuple) and key in self._coords:
-            return self._comms[self._coords.index(key)]
+        if isinstance(key, tuple) and key in self.coords:
+            return self._comms[self.coords.index(key)]
         return super().__getitem__(key)

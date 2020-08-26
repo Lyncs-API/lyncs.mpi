@@ -19,7 +19,7 @@ def test_comm():
     assert len(comm) == comm.size
     assert set(comm.ranks) == set(range(4))
     assert set(comm.workers) == set(client.workers)
-    assert comm[0] == comm[comm.ranks[0]]
+    assert comm[0] == comm[comm.ranks_worker[0]]
     
     with raises(KeyError):
         comm[5]
@@ -28,4 +28,4 @@ def test_comm():
     assert cart.dims == (2,2)
     assert all(cart.periods)
     assert cart[0] == cart[cart.ranks_coords[0]]
-    assert cart[cart.ranks[0]] == cart[cart.workers_coords[cart.ranks[0]]]
+
