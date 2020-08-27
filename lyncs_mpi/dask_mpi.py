@@ -265,6 +265,7 @@ class Comm:
         self._ranks = self.client.map(lambda comm: comm.rank, self)
         self._ranks = tuple(_.result() for _ in self._ranks)
         self._workers = tuple(map(next, map(iter, map(self.client.who_has, self))))
+        assert len(set(self.workers)) == len(self), "Not unique set of workers"
 
     @property
     def client(self):
