@@ -114,6 +114,12 @@ class Client(_Client):
         signal.alarm(0)
 
         self.ranks = {key: val["name"] for key, val in self.workers.items()}
+        self._comm = self.create_comm()
+
+    @property
+    def comm(self):
+        "Returns the global communicator of the clients"
+        return self._comm
 
     @property
     def workers(self):
