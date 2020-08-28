@@ -15,6 +15,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        ref: ${{ github.head_ref }}
 
     - name: Set up Python
       uses: actions/setup-python@v1
@@ -27,10 +29,18 @@ jobs:
         sudo apt-get install -y libopenmpi-dev openmpi-bin
         pip install black pylint
         
-    - name: Check black formatting
+    - name: Applying black formatting
       run: |
         black --diff .
-        black --check .
+        black .
+
+    - name: Pushing changes if any
+      uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: Applying black formatting (from Github Action)
+        commit_user_name: sbacchio
+        commit_user_email: s.bacchio@gmail.com
+        commit_author: Simone Bacchio <s.bacchio@gmail.com>
 
     - name: Install from source
       run: |
