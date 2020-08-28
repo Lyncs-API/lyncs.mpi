@@ -29,6 +29,7 @@ jobs:
         
     - name: Check black formatting
       run: |
+        black --diff .
         black --check .
 
     - name: Install from source
