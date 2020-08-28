@@ -51,7 +51,10 @@ class Client(_Client):
     "Wrapper to dask.distributed.Client"
 
     def __init__(
-        self, num_workers=None, threads_per_worker=1, launch=None,
+        self,
+        num_workers=None,
+        threads_per_worker=1,
+        launch=None,
     ):
         """
         Returns a Client connected to a cluster of `num_workers` workers.
@@ -184,7 +187,11 @@ class Client(_Client):
         return _Client.who_has(self, *args, **kwargs)
 
     def select_workers(
-        self, num_workers=None, workers=None, exclude=None, resources=None,
+        self,
+        num_workers=None,
+        workers=None,
+        exclude=None,
+        resources=None,
     ):
         """
         Selects `num_workers` from the one available.
@@ -210,9 +217,10 @@ class Client(_Client):
         )
 
         if exclude:
-            assert set(exclude).issubset(self.ranks.keys()), (
-                "Some workers to exclude are unkown %s"
-                % (workers.difference(self.ranks.keys()))
+            assert set(exclude).issubset(
+                self.ranks.keys()
+            ), "Some workers to exclude are unkown %s" % (
+                workers.difference(self.ranks.keys())
             )
             workers = workers.difference(exclude)
 
