@@ -16,7 +16,28 @@ import atexit
 import tempfile
 import multiprocessing
 from functools import wraps
+
+import sys
+from packaging import version
 import sh
+
+# The following can be deleted when sh==1.13.2 has been released
+if version.parse(sh.__version__) < version.parse("1.13.2"):
+
+    sys.meta_path.pop(0)
+
+    def find_spec(self, fullname, path=None, target=None):
+        """ find_module() is deprecated since Python 3.4 in favor of find_spec() """
+
+        from importlib.machinery import ModuleSpec
+
+        found = self.find_module(fullname, path)
+        return ModuleSpec(fullname, found) if found is not None else None
+
+    sh._SelfWrapper__self_module.ModuleImporterFromVariables.find_spec = find_spec
+    sh._SelfWrapper__self_module.register_importer()
+
+
 from dask_mpi import initialize
 from dask.distributed import Client as _Client
 from dask.distributed import default_client as _default_client
@@ -25,6 +46,7 @@ from .lib import default_comm
 
 @wraps(_default_client)
 def default_client():
+    "Returns the default client"
     client = _default_client()
     assert isinstance(client, Client), "No MPI client found"
     return client
@@ -33,9 +55,7 @@ def default_client():
 class Client(_Client):
     "Wrapper to dask.distributed.Client"
 
-    def __init__(
-        self, num_workers=None, threads_per_worker=1, launch=None,
-    ):
+    def __init__(self, num_workers=None, threads_per_worker=1, launch=None):
         """
         Returns a Client connected to a cluster of `num_workers` workers.
         """
@@ -44,6 +64,7 @@ class Client(_Client):
         if launch is None:
             launch = default_comm().size == 1
 
+        # pylint: disable=import-outside-toplevel,
         if not launch:
             # Then the script has been submitted in parallel with mpirun
             num_workers = num_workers or default_comm().size - 1
@@ -111,6 +132,12 @@ class Client(_Client):
         signal.alarm(0)
 
         self.ranks = {key: val["name"] for key, val in self.workers.items()}
+        self._comm = self.create_comm()
+
+    @property
+    def comm(self):
+        "Returns the global communicator of the clients"
+        return self._comm
 
     @property
     def workers(self):
@@ -160,11 +187,11 @@ class Client(_Client):
         return _Client.who_has(self, *args, **kwargs)
 
     def select_workers(
-        self, num_workers=None, workers=None, exclude=None, resources=None,
+        self, num_workers=None, workers=None, exclude=None, resources=None
     ):
         """
         Selects `num_workers` from the one available.
-        
+
         Parameters
         ----------
         workers: list, default all
@@ -178,30 +205,26 @@ class Client(_Client):
         if not workers:
             workers = list(self.ranks.keys())
 
-        assert len(set(workers)) == len(workers), "Workers has repetitions"
         workers = set(workers)
-
-        assert workers.issubset(self.ranks.keys()), "Some workers are unkown %s" % (
-            workers.difference(self.ranks.keys())
-        )
+        workers = workers.intersection(self.ranks.keys())
 
         if exclude:
-            assert set(exclude).issubset(self.ranks.keys()), (
-                "Some workers to exclude are unkown %s"
-                % (workers.difference(self.ranks.keys()))
-            )
+            if isinstance(exclude, str):
+                exclude = [exclude]
             workers = workers.difference(exclude)
 
         if resources:
             # TODO select accordingly requested resources
-            assert False, "Resources not implemented."
+            raise NotImplementedError("Resources not implemented.")
 
         if not num_workers:
             num_workers = len(workers)
-        assert num_workers <= len(workers), "Available workers are less than required"
+
+        if num_workers > len(workers):
+            raise RuntimeError("Available workers are less than required")
 
         # TODO implement some rules to choose wisely n workers
-        # e.g. workers not busy
+        # e.g. workers less busy, close to each other, etc
         selected = list(workers)[:num_workers]
 
         return selected
@@ -255,7 +278,8 @@ class Comm:
         self._comms = tuple(comms)
         self._ranks = self.client.map(lambda comm: comm.rank, self)
         self._ranks = tuple(_.result() for _ in self._ranks)
-        self._workers = tuple(map(next,map(iter,map(self.client.who_has, self))))
+        self._workers = tuple(map(next, map(iter, map(self.client.who_has, self))))
+        assert len(set(self.workers)) == len(self), "Not unique set of workers"
 
     @property
     def client(self):
@@ -281,7 +305,6 @@ class Comm:
     def ranks_worker(self):
         "Mapping between ranks and workers"
         return dict(zip(self._ranks, self._workers))
-        
 
     def create_cart(self, dims, periods=None, reorder=False):
         """
@@ -292,7 +315,7 @@ class Comm:
         dims: list
             integer array specifying the number of processes in each dimension
         periods: boolean [list]
-            logical [array] specifying whether the grid is periodic (True) or not (False) [in each dimension]
+            logical [array] specifying whether the grid is periodic (True) or not (False)
         reorder: boolean
             ranking may be reordered (True) or not (False)
         """
@@ -349,7 +372,7 @@ class Cartcomm(Comm):
     def coords(self):
         "Coordinates of the cartesian communicator"
         return self._coords
-    
+
     @property
     def ranks_coords(self):
         "Coordinates of the ranks of the cartesian communicator"
