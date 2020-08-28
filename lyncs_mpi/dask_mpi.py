@@ -17,11 +17,14 @@ import tempfile
 import multiprocessing
 from functools import wraps
 
+import sys
 from packaging import version
 import sh
 
 # The following can be deleted when sh==1.13.2 has been released
 if version.parse(sh.__version__) < version.parse("1.13.2"):
+
+    sys.meta_path.pop(0)
 
     def find_spec(self, fullname, path=None, target=None):
         """ find_module() is deprecated since Python 3.4 in favor of find_spec() """
@@ -31,7 +34,9 @@ if version.parse(sh.__version__) < version.parse("1.13.2"):
         found = self.find_module(fullname, path)
         return ModuleSpec(fullname, found) if found is not None else None
 
-    sh.sh.ModuleImporterFromVariables.find_spec = find_spec
+    sh._SelfWrapper__self_module.ModuleImporterFromVariables.find_spec = find_spec
+    sh._SelfWrapper__self_module.register_importer()
+
 
 from dask_mpi import initialize
 from dask.distributed import Client as _Client
@@ -50,12 +55,7 @@ def default_client():
 class Client(_Client):
     "Wrapper to dask.distributed.Client"
 
-    def __init__(
-        self,
-        num_workers=None,
-        threads_per_worker=1,
-        launch=None,
-    ):
+    def __init__(self, num_workers=None, threads_per_worker=1, launch=None):
         """
         Returns a Client connected to a cluster of `num_workers` workers.
         """
@@ -187,11 +187,7 @@ class Client(_Client):
         return _Client.who_has(self, *args, **kwargs)
 
     def select_workers(
-        self,
-        num_workers=None,
-        workers=None,
-        exclude=None,
-        resources=None,
+        self, num_workers=None, workers=None, exclude=None, resources=None
     ):
         """
         Selects `num_workers` from the one available.
@@ -209,31 +205,26 @@ class Client(_Client):
         if not workers:
             workers = list(self.ranks.keys())
 
-        assert len(set(workers)) == len(workers), "Workers has repetitions"
         workers = set(workers)
-
-        assert workers.issubset(self.ranks.keys()), "Some workers are unkown %s" % (
-            workers.difference(self.ranks.keys())
-        )
+        workers = workers.intersection(self.ranks.keys())
 
         if exclude:
-            assert set(exclude).issubset(
-                self.ranks.keys()
-            ), "Some workers to exclude are unkown %s" % (
-                workers.difference(self.ranks.keys())
-            )
+            if isinstance(exclude, str):
+                exclude = [exclude]
             workers = workers.difference(exclude)
 
         if resources:
             # TODO select accordingly requested resources
-            assert False, "Resources not implemented."
+            raise NotImplementedError("Resources not implemented.")
 
         if not num_workers:
             num_workers = len(workers)
-        assert num_workers <= len(workers), "Available workers are less than required"
+
+        if num_workers > len(workers):
+            raise RuntimeError("Available workers are less than required")
 
         # TODO implement some rules to choose wisely n workers
-        # e.g. workers not busy
+        # e.g. workers less busy, close to each other, etc
         selected = list(workers)[:num_workers]
 
         return selected
