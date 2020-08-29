@@ -8,7 +8,7 @@ requirements = [
     "dask[array]",
     "dask[distributed]",
     "dask-mpi",
-    "sh",
+    "sh>=1.14.0",
 ]
 
 
