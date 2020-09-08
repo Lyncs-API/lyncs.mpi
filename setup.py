@@ -14,8 +14,8 @@ requirements = [
 
 setup(
     "lyncs_mpi",
-    exclude=["*.config"],
     ext_modules=[CMakeExtension("lyncs_mpi.lib", ".")],
+    exclude=["*.config"],
     data_files=[(".", ["config.py.in"])],
     install_requires=requirements,
     extras_require={
@@ -24,10 +24,4 @@ setup(
             "pytest-cov",
         ]
     },
-    keywords=[
-        "Lyncs",
-        "MPI",
-        "mpi4py",
-        "dask-mpi",
-    ],
 )
