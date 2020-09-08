@@ -7,3 +7,4 @@ __version__ = "0.0.3"
 from .lib import *
 from .dask_mpi import *
 from .dask_array import *
+from .parallel import *

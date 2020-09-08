@@ -155,6 +155,8 @@ class Client(_Client):
         overload: bool, default true
             If false the original who_has is used
         """
+        if isinstance(args[0], tuple):
+            args = (tuple(args[0]),) + args[1:]
         if overload:
             _workers = list(_Client.who_has(self, *args, **kwargs).values())
             workers = [w[0] for w in _workers if len(w) == 1]
