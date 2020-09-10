@@ -9,7 +9,9 @@ from itertools import chain
 from distributed.client import Future
 from distributed import as_completed
 from collections import deque
-from lyncs_utils import isiterable
+from functools import wraps
+from lyncs_utils import isiterable, interactive
+from .abc import Result, Global
 
 
 def isparallel(val):
@@ -39,7 +41,9 @@ class Serial:
 
 class Parallel(tuple):
     def __new__(cls, ftrs):
-        deque(as_completed(ftrs, raise_errors=True))
+        for ftr in as_completed(ftrs):
+            if ftr.status == "error":
+                ftr.result()
         return super().__new__(cls, ftrs)
 
     @property
@@ -52,57 +56,98 @@ class Parallel(tuple):
 
     def __getattr__(self, key):
         cls = self[0].type
+        finalize = True
         try:
-            if callable(getattr(cls, key)):
-                return lambda *args, **kwargs: self.__callattr__(key, *args, **kwargs)
+            attr = getattr(cls, key)
+            finalize = get_finalize(attr)
+            if callable(attr):
+                fnc = lambda *args, **kwargs: parallel_call(
+                    key, self, *args, finalize=finalize, **kwargs
+                )
+                if interactive():
+                    return wraps(attr)(fnc)
+                return fnc
         except AttributeError:
             pass
-        return Parallel(self.client.map(lambda self: getattr(self, key), self))
-
-    def __callattr__(self, key, *args, **kwargs):
-        parallel = []
-        for i, arg in enumerate(args):
-            if isparallel(arg):
-                parallel.append((i, arg))
-
-        for key, arg in kwargs.items():
-            if isparallel(arg):
-                parallel.append((key, arg))
-
-        keys, vals = tuple(zip(*parallel))
-        return Parallel(
-            self.client.map(
-                lambda self, *vals: getattr(self, key)(
-                    *replace_args(keys, vals, *args),
-                    **replace_kwargs(keys, vals, **kwargs),
-                ),
-                self,
-                *vals,
-            )
-        )
+        return parallel_call(getattr, self, key, finalize=finalize)
 
     def __setattr__(self, key, val):
-        Parallel(self.client.map(lambda fut: setattr(fut, key, val), self))
+        parallel_call(setattr, self, key, val)
 
-        
+    def __call__(self, *args, **kwargs):
+        return parallel_call(self, *args, **kwargs)
 
-def replace_args(keys, vals, *args):
-    if not keys:
+
+def insert_args(idxs, vals, *args):
+    if not idxs:
         return args
+    args = list(args)
+    for i, arg in zip(idxs, vals):
+        args.insert(i, arg)
+    return tuple(args)
+
+
+def get_return(fnc):
+    if hasattr(fnc, "__annotations__"):
+        return fnc.__annotations__.get("return", None)
+    if isinstance(fnc, property):
+        return get_return(fnc.fget)
+    return None
+
+
+def get_finalize(val):
+    if not val:
+        return lambda _: _
+    ret = get_return(val)
+    if ret and (
+        isinstance(ret, Result) or (isinstance(ret, type) and issubclass(ret, Result))
+    ):
+        return ret.finalize
+    return Parallel
+
+
+def parallel_call(fnc, *args, finalize=True, **kwargs):
+
+    if isinstance(fnc, str):
+        call = lambda self, *args, **kwargs: getattr(self, fnc)(*args, **kwargs)
+    elif isparallel(fnc):
+        call = lambda fnc, *args, **kwargs: fnc(*args, **kwargs)
+        args = (fnc,) + args
+    else:
+        call = fnc
+
+    if not callable(finalize):
+        finalize = get_finalize(fnc)
+
+    keys = []
+    vals = []
     for i, arg in enumerate(args):
-        try:
-            yield vals[keys.index(i)]
-        except IndexError:
-            yield arg
+        if isparallel(arg):
+            keys.append(i)
+            vals.append(arg)
 
+    args = tuple(arg for i, arg in enumerate(args) if i not in keys)
+    n_args = len(keys)
 
-def replace_kwargs(keys, vals, **kwargs):
-    if not keys:
-        return kwargs
-    for key, val in zip(keys, vals):
-        if isinstance(key, str):
-            kwargs[key] = val
-    return kwargs
+    for key, arg in list(kwargs.items()):
+        if isparallel(arg):
+            keys.append(key)
+            vals.append(arg)
+            kwargs.pop(key)
+
+    assert vals
+    client = vals[0][0].client
+
+    return finalize(
+        client.map(
+            lambda *vals: call(
+                *insert_args(keys[:n_args], vals[:n_args], *args),
+                **kwargs,
+                **dict(zip(keys[n_args:], vals[n_args:])),
+            ),
+            *vals,
+        )
+    )
 
 
 class ParallelClass(type):
@@ -117,29 +162,9 @@ class ParallelClass(type):
         return super().__new__(cls, name, bases, class_attrs, **kwargs)
 
     def __call__(cls, *args, **kwargs):
-        parallel = []
-        for i, arg in enumerate(args):
-            if isparallel(arg):
-                parallel.append((i, arg))
-
-        for key, arg in kwargs.items():
-            if isparallel(arg):
-                parallel.append((key, arg))
-
-        if not parallel:
-            return super().__call__(*args, **kwargs)
-
-        client = parallel[0][1][0].client
-        keys, vals = tuple(zip(*parallel))
-        return Parallel(
-            client.map(
-                lambda *vals: cls(
-                    *replace_args(keys, vals, *args),
-                    **replace_kwargs(keys, vals, **kwargs),
-                ),
-                *vals,
-            )
-        )
+        if any((isparallel(val) for val in chain(args, kwargs.values()))):
+            return parallel_call(cls, *args, **kwargs)
+        return super().__call__(*args, **kwargs)
 
     def __instancecheck__(cls, instance):
         return super().__instancecheck__(instance) or (
@@ -151,3 +176,9 @@ class ParallelClass(type):
 class Test(metaclass=ParallelClass):
     def __init__(self, foo=None):
         self.foo = foo
+
+    def ten(self) -> Global:
+        return 10
+
+    def values(self) -> Result:
+        return self.foo

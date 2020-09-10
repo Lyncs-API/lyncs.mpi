@@ -27,6 +27,8 @@ def test_parallel():
     assert len(foo) == 2
     assert set(foo.workers) == set(client.who_has(init))
     assert set(foo.workers) == set(client.who_has(foo))
+    assert foo.ten() == 10
+    assert foo.values() == (1, 2)
 
     foo = Test(foo=init)
     assert isinstance(foo, Parallel)
@@ -34,3 +36,5 @@ def test_parallel():
     assert foo.client is client
     assert set(foo.workers) == set(client.who_has(init))
     assert set(foo.workers) == set(client.who_has(foo))
+    assert foo.ten() == 10
+    assert foo.values() == (1, 2)
