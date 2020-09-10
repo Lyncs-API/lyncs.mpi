@@ -8,6 +8,5 @@ def test_init():
 
     assert initialized() == True
     assert MPI.Is_initialized() == True
-    finalize()
-    assert finalized() == True
-    assert MPI.Is_finalized() == True
+    assert finalized() == False
+    assert MPI.Is_finalized() == False
