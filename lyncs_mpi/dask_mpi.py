@@ -155,8 +155,6 @@ class Client(_Client):
         overload: bool, default true
             If false the original who_has is used
         """
-        if isinstance(args[0], tuple):
-            args = (tuple(args[0]),) + args[1:]
         if overload:
             _workers = list(_Client.who_has(self, *args, **kwargs).values())
             workers = [w[0] for w in _workers if len(w) == 1]
@@ -307,12 +305,16 @@ class Comm:
             )
         )
 
-    def __getitem__(self, key):
+    def index(self, key):
+        "Returns the index of key"
         if isinstance(key, int) and key in self.ranks:
-            return self._comms[self.ranks.index(key)]
+            return self.ranks.index(key)
         if isinstance(key, str) and key in self.workers:
-            return self._comms[self.workers.index(key)]
+            return self.workers.index(key)
         raise KeyError(f"{key} is neither a rank or a worker of {self}")
+
+    def __getitem__(self, key):
+        return self._comms[self.index(key)]
 
     def __len__(self):
         return len(self._comms)
@@ -359,7 +361,16 @@ class Cartcomm(Comm):
         "Coordinates of the ranks of the cartesian communicator"
         return dict(zip(self.ranks, self.coords))
 
-    def __getitem__(self, key):
-        if isinstance(key, tuple) and key in self.coords:
-            return self._comms[self.coords.index(key)]
-        return super().__getitem__(key)
+    def index(self, key):
+        "Returns the index of key"
+        if isinstance(key, tuple):
+            lkey = len(key)
+            ldims = len(self.dims)
+            if len(key) <= len(self.dims):
+                key = key + (0,) * (ldims - lkey)
+            elif key[ldims:] == (0,) * (lkey - ldims):
+                key = key[:ldims]
+            else:
+                raise IndexError(f"{key} out of range {self.dims}")
+            return self.coords.index(key)
+        return super().index(key)
