@@ -8,5 +8,6 @@ from . import abc
 from .lib import *
 from .client import *
 from .comm import *
+from .distributed import *
+from .cartesian import *
 from .dask_array import *
-from .parallel import *
