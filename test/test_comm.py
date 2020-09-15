@@ -12,7 +12,7 @@ def test_comm():
     assert len(comm) == comm.size
     assert set(comm.ranks) == set(range(4))
     assert set(comm.workers) == set(client.workers)
-    assert comm[0] == comm[comm.ranks_worker[0]]
+    assert comm[0] == comm[comm.ranks_workers[0]]
 
     with raises(KeyError):
         comm[5]

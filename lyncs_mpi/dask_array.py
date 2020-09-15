@@ -13,7 +13,7 @@ from math import ceil
 from dask.array import Array, zeros, ones, empty, full
 from dask.array.core import normalize_chunks
 from dask.distributed import wait as wait_for
-from .comm import Cartcomm
+from .comm import CartComm
 
 
 def get_cart_arrays(cart, array, dims_axes=None, wait=True):
@@ -22,7 +22,7 @@ def get_cart_arrays(cart, array, dims_axes=None, wait=True):
 
     Parameters
     ----------
-    cart: Cartcomm
+    cart: CartComm
         A cartesian communicator with dimensions equal to the number of chunks
     array: Dask Array
         A dask array distributed on the cartesian communicator
@@ -33,8 +33,8 @@ def get_cart_arrays(cart, array, dims_axes=None, wait=True):
         for checking the actual list of workers.
         Disable only if you are sure of the location of the array.
     """
-    if not isinstance(cart, Cartcomm):
-        cart = Cartcomm(cart)
+    if not isinstance(cart, CartComm):
+        cart = CartComm(cart)
 
     # As first checking if it is compatible and getting the axes
     cart_axes, arr_axes = get_axes(cart.dims, dims_axes, array.shape, array.chunks)
@@ -75,7 +75,7 @@ def cart_array(cart, arrays, shape=None, dims_axes=None, chunks=None, dtype=None
 
     Parameters
     ----------
-    cart: Cartcomm
+    cart: CartComm
         A cartesian communicator with dimensions equal to the number of chunks
     arrays: tuple(futures)
         A set of future arrays associated to the cart
@@ -88,8 +88,8 @@ def cart_array(cart, arrays, shape=None, dims_axes=None, chunks=None, dtype=None
     dtype: tuple(int)
         The dtype of the array
     """
-    if not isinstance(cart, Cartcomm):
-        cart = Cartcomm(cart)
+    if not isinstance(cart, CartComm):
+        cart = CartComm(cart)
 
     if not len(arrays) == len(cart):
         raise ValueError("arrays and cart must have the same length")
@@ -221,8 +221,8 @@ def array_wrapper(mth):
     """
 
     def wrapper(cart, shape, dims_axes=None, chunks=None, **kwargs):
-        if not isinstance(cart, Cartcomm):
-            cart = Cartcomm(cart)
+        if not isinstance(cart, CartComm):
+            cart = CartComm(cart)
 
         if chunks is None:
             chunks = list(shape)
@@ -271,8 +271,8 @@ cart_zeros = array_wrapper(zeros)
 cart_ones = array_wrapper(ones)
 cart_empty = array_wrapper(empty)
 cart_full = array_wrapper(full)
-Cartcomm.zeros = cart_zeros
-Cartcomm.ones = cart_ones
-Cartcomm.empty = cart_empty
-Cartcomm.full = cart_full
-Cartcomm.array = cart_array
+CartComm.zeros = cart_zeros
+CartComm.ones = cart_ones
+CartComm.empty = cart_empty
+CartComm.full = cart_full
+CartComm.array = cart_array

@@ -2,50 +2,45 @@
 
 __all__ = [
     "Comm",
-    "Cartcomm",
+    "CartComm",
 ]
 
+from lyncs_utils import compute_property
+from .abc import Result
+from .distributed import Distributed
 
-class Comm:
+
+class Comm(Distributed):
     "MPI communicator"
 
     __slots__ = [
-        "_comms",
         "_ranks",
-        "_workers",
     ]
 
     def __init__(self, comms):
-        self._comms = tuple(comms)
-        self._ranks = self.client.map(lambda comm: comm.rank, self)
-        self._ranks = tuple(_.result() for _ in self._ranks)
-        self._workers = tuple(map(next, map(iter, map(self.client.who_has, self))))
-        assert len(set(self.workers)) == len(self), "Not unique set of workers"
+        super().__init__(comms, cls=self.MPItype)
 
-    @property
-    def client(self):
-        "Client of the communicator"
-        return self._comms[0].client
+    @classmethod
+    def MPItype(cls):
+        "Returns the MPI type of the class"
+        from mpi4py import MPI
+
+        return MPI.Comm
 
     @property
     def size(self):
         "Size of the communicator"
         return len(self)
 
-    @property
+    @compute_property
     def ranks(self):
         "Ranks of the communicator with respective worker"
-        return self._ranks
+        return Result(self.rank)
 
     @property
-    def workers(self):
-        "Workers of the communicator with respective rank"
-        return self._workers
-
-    @property
-    def ranks_worker(self):
+    def ranks_workers(self):
         "Mapping between ranks and workers"
-        return dict(zip(self._ranks, self._workers))
+        return dict(zip(self.ranks, self.workers))
 
     def create_cart(self, dims, periods=None, reorder=False):
         """
@@ -60,32 +55,18 @@ class Comm:
         reorder: boolean
             ranking may be reordered (True) or not (False)
         """
-        return Cartcomm(
-            self.client.map(
-                lambda comm: comm.Create_cart(dims, periods=periods, reorder=reorder),
-                self,
-            )
-        )
+        return CartComm(self.Create_cart(dims, periods=periods, reorder=reorder))
 
     def index(self, key):
-        "Returns the index of key"
+        "Returns the index of key that can be either rank(int) or worker(str)"
         if isinstance(key, int) and key in self.ranks:
             return self.ranks.index(key)
         if isinstance(key, str) and key in self.workers:
             return self.workers.index(key)
         raise KeyError(f"{key} is neither a rank or a worker of {self}")
 
-    def __getitem__(self, key):
-        return self._comms[self.index(key)]
 
-    def __len__(self):
-        return len(self._comms)
-
-    def __iter__(self):
-        return iter(self._comms)
-
-
-class Cartcomm(Comm):
+class CartComm(Comm):
     "Cartesian communicator"
 
     __slots__ = [
@@ -96,12 +77,16 @@ class Cartcomm(Comm):
 
     def __init__(self, comms):
         super().__init__(comms)
-        topos = self.client.map(lambda comm: comm.Get_topo(), self)
-        topos = tuple(_.result() for _ in topos)
+        topos = Result(self.Get_topo())
         self._dims = tuple(topos[0][0])
-        self._periods = tuple(topos[0][1])
-        self._periods = tuple(bool(_) for _ in self._periods)
+        self._periods = tuple(bool(_) for _ in topos[0][1])
         self._coords = tuple(tuple(topo[2]) for topo in topos)
+
+    @classmethod
+    def MPItype(cls):
+        from mpi4py import MPI
+
+        return MPI.CartComm
 
     @property
     def dims(self):
@@ -124,7 +109,7 @@ class Cartcomm(Comm):
         return dict(zip(self.ranks, self.coords))
 
     def index(self, key):
-        "Returns the index of key"
+        "Returns the index of key that can be either rank(int) or worker(str) or coord(tuple)"
         if isinstance(key, tuple):
             lkey = len(key)
             ldims = len(self.dims)
@@ -133,6 +118,6 @@ class Cartcomm(Comm):
             elif key[ldims:] == (0,) * (lkey - ldims):
                 key = key[:ldims]
             else:
-                raise IndexError(f"{key} out of range {self.dims}")
+                raise KeyError(f"{key} out of range {self.dims}")
             return self.coords.index(key)
         return super().index(key)

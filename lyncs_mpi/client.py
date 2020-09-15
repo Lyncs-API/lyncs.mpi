@@ -218,14 +218,12 @@ class Client(_Client):
 
         return selected
 
-    def create_comm(self, actor=False, **kwargs):
+    def create_comm(self, **kwargs):
         """
         Return a MPI communicator involving workers available by the client.
 
         Parameters
         ----------
-        actor: bool, default True
-            Wether the returned communicator should be a dask actor.
         **kwargs: params
             Following list of parameters for the function select_workers.
         """
@@ -251,4 +249,4 @@ class Client(_Client):
             comm = default_comm()
             return comm.Create_group(comm.group.Incl(ranks))
 
-        return Comm(self.map(_create_comm, ranks, actor=actor))
+        return Comm(self.map(_create_comm, ranks))
