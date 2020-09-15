@@ -1,5 +1,4 @@
-from lyncs_mpi import Client
-from lyncs_mpi.dask_mpi import Cartcomm
+from lyncs_mpi import Client, Cartcomm
 from lyncs_mpi.parallel import *
 from lyncs_mpi.parallel import Test, CartTest
 from dask.array import Array

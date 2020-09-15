@@ -16,7 +16,7 @@ from functools import wraps
 from lyncs_utils import isiterable, interactive
 import numpy as np
 from .abc import Result, Global, Array
-from .dask_mpi import Cartcomm
+from .comm import Cartcomm
 
 
 def isparallel(val):

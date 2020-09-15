@@ -13,7 +13,7 @@ from math import ceil
 from dask.array import Array, zeros, ones, empty, full
 from dask.array.core import normalize_chunks
 from dask.distributed import wait as wait_for
-from .dask_mpi import Cartcomm
+from .comm import Cartcomm
 
 
 def get_cart_arrays(cart, array, dims_axes=None, wait=True):
