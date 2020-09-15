@@ -68,7 +68,7 @@ def get_cart_arrays(cart, array, dims_axes=None, wait=True):
     return arrays
 
 
-def cart_array(cart, arrays, shape, dims_axes=None, chunks=None, dtype=None):
+def cart_array(cart, arrays, shape=None, dims_axes=None, chunks=None, dtype=None):
     """
     Turns a set of future arrays (result of a distributed operation),
     associated to a cartesian communicator, into a Dask Array.
@@ -113,6 +113,11 @@ def cart_array(cart, arrays, shape, dims_axes=None, chunks=None, dtype=None):
                     "Arrays with non-uniform chunks not supported yet"
                 )
 
+    if shape is None:
+        shape = list(chunks)
+        for (_, _l), _i in zip(*normalize_cart_dims(cart.dims, dims_axes, len(chunks))):
+            shape[_i] *= _l
+
     chunks = normalize_chunks(chunks, shape, dtype=dtype)
 
     cart_axes, arr_axes = get_axes(cart.dims, dims_axes, shape, chunks)
@@ -125,7 +130,7 @@ def cart_array(cart, arrays, shape, dims_axes=None, chunks=None, dtype=None):
         for _i, _j in zip(coords, arr_axes):
             key[_j] = _i
 
-        name = arrays[0].key
+        name = next(iter(arrays)).key
         if isinstance(name, tuple):
             name = name[0]
         assert isinstance(name, str)
@@ -140,7 +145,9 @@ def normalize_cart_dims(dims, dims_axes=None, shape_size=None):
 
     cart_dims = tuple((_i, _l) for _i, _l in enumerate(dims) if _l > 1)
 
-    if dims_axes is not None:
+    if dims_axes is None:
+        dims_axes = tuple(_i for _i, _l in cart_dims)
+    else:
         if not len(dims_axes) == len(dims):
             raise ValueError(
                 f"""
@@ -149,12 +156,13 @@ def normalize_cart_dims(dims, dims_axes=None, shape_size=None):
             )
 
         dims_axes = tuple(dims_axes[_i] for _i, _l in cart_dims)
-        if not len(set(dims_axes)) == len(dims_axes):
-            raise ValueError(f"Repeated values in dims_axes {dims_axes}")
-        if not set(dims_axes) <= set(range(shape_size)):
-            raise ValueError(
-                f"Values in dims_axes {dims_axes} out of shape range {shape_size}"
-            )
+
+    if not len(set(dims_axes)) == len(dims_axes):
+        raise ValueError(f"Repeated values in dims_axes {dims_axes}")
+    if not set(dims_axes) <= set(range(shape_size)):
+        raise ValueError(
+            f"Values in dims_axes {dims_axes} out of shape range {shape_size}"
+        )
 
     return cart_dims, dims_axes
 
