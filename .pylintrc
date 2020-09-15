@@ -1,2 +1,3 @@
 [TYPECHECK]
 generated-members=sh
+extension-pkg-whitelist=mpi4py.MPI
