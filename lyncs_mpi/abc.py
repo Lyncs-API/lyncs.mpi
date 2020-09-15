@@ -9,19 +9,22 @@ from distributed import as_completed
 
 
 class Result(ABC):
-    @classmethod
-    def finalize(cls, ftrs):
+    def __new__(cls, ftrs):
         return tuple(ftr.result() for ftr in ftrs)
 
 
 class Global(Result):
-    @classmethod
-    def finalize(cls, ftrs):
-        return next(as_completed(ftrs, with_results=True))[1]
+    def __new__(cls, ftrs):
+        res = super().__new__(cls, ftrs)
+        ret = res[0]
+        if not all((_ == ret for _ in res)):
+            raise RuntimeError(f"Expected global value but got different resuts: {res}")
+        return ret
 
 
 class Array(Result):
-    pass
+    def __new__(cls, ftrs):
+        return ftrs.comm.array(ftrs)
 
 
 Array.register(ndarray)
