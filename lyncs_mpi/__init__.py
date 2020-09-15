@@ -10,4 +10,4 @@ from .client import *
 from .comm import *
 from .distributed import *
 from .cartesian import *
-from .dask_array import *
+from .cart_array import *
