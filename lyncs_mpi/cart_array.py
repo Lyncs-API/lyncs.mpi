@@ -184,7 +184,7 @@ def get_axes(dims, dims_axes, shape, chunks):
             """
         )
 
-    # Reording cart.dims with dims_axes
+    # Reordering cart.dims with dims_axes
     if dims_axes is not None:
         aaxes = tuple(_i for _i, _l in arr_dims)
         if not sorted(dims_axes) == sorted(aaxes):
