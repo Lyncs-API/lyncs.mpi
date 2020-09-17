@@ -5,12 +5,9 @@ __all__ = [
     "default_comm",
     "initialized",
     "finalized",
-    "initialize",
-    "finalize",
 ]
 
 from ctypes import c_int
-from cppyy import nullptr
 from lyncs_cppyy import Lib
 from .config import MPI_INCLUDE_DIRS, MPI_LIBRARIES
 
