@@ -8,6 +8,7 @@ class Test(metaclass=DistributedClass):
     def __init__(self, foo=None):
         self.foo = foo
 
+    @property
     def ten(self) -> Global:
         return 10
 

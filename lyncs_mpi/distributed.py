@@ -41,10 +41,8 @@ class Distributed:
         "_type",
     ]
 
-    def __init__(self, dask, wait=False, cls=None):
+    def __init__(self, dask, cls=None):
         self._dask = tuple(dask)
-        if wait:
-            self.wait()
         if cls:
             self._type = cls
 
@@ -53,6 +51,7 @@ class Distributed:
         for ftr in as_completed(self.dask):
             if ftr.status == "error":
                 ftr.result()
+        return self
 
     @property
     def dask(self):
@@ -67,18 +66,16 @@ class Distributed:
     @compute_property
     def workers(self):
         "Returns the of workers holding the distributed objects"
-        self.wait()
-        return tuple(map(next, map(iter, map(self.client.who_has, self))))
+        return tuple(map(next, map(iter, map(self.client.who_has, self.wait()))))
 
     @compute_property
     def type(self):
         "Returns the class of the distributed objects"
-        self.wait()
-        return next(iter(self)).type
+        return next(iter(self.wait())).type
 
     def index(self, key):
         "Returns the index of the dask futures (self.dask) for a given key"
-        if isinstance(key, str) in self.workers:
+        if isinstance(key, str) and key in self.workers:
             return self.workers.index(key)
         raise KeyError(f"Key {key} not found")
 
@@ -101,13 +98,24 @@ class Distributed:
             return cls._get_finalize(fnc.fget)
         return lambda _: _
 
+    @staticmethod
+    def _insert_args(idxs, vals, *args):
+        "Auxiliary function that inserts vals into args at idxs position used by _remote_call"
+        if not idxs:
+            return args
+        args = list(args)
+        for i, arg in zip(idxs, vals):
+            args.insert(i, arg)
+        return tuple(args)
+
     @classmethod
     def _remote_call(cls, fnc, *args, **kwargs):
         if isdistributed(fnc):
             call = lambda fnc, *args, **kwargs: fnc(*args, **kwargs)
             args = (fnc,) + args
         else:
-            assert callable(fnc), f"Given {fnc} is not callable"
+            if not callable(fnc):
+                raise TypeError(f"Type {type(fnc)} is not callable")
             call = fnc
             args, kwargs = apply_annotations(fnc, *args, **kwargs)
 
@@ -135,7 +143,7 @@ class Distributed:
         return Distributed(
             client.map(
                 lambda *vals: call(
-                    *insert_args(keys[:n_args], vals[:n_args], *args),
+                    *Distributed._insert_args(keys[:n_args], vals[:n_args], *args),
                     **kwargs,
                     **dict(zip(keys[n_args:], vals[n_args:])),
                 ),
@@ -163,11 +171,18 @@ class Distributed:
             pass
         return self._remote_call(getattr, self, key)
 
+    def _set_and_return(self, key, val):
+        "Auxiliary function used by __setattr__"
+        setattr(self, key, val)
+        return self
+
     def __setattr__(self, key, val):
         if key in dir(type(self)):
             super().__setattr__(key, val)
         else:
-            self._remote_call(setattr, self, key, val)
+            self._dask = self._remote_call(
+                Distributed._set_and_return, self, key, val
+            ).dask
 
     def __call__(self, *args, **kwargs):
         return self._remote_call(self, *args, **kwargs)
@@ -176,16 +191,6 @@ class Distributed:
         if isinstance(other, Distributed):
             other = other.dask
         return self.dask == other
-
-
-def insert_args(idxs, vals, *args):
-    "Inserts vals into args at idxs position"
-    if not idxs:
-        return args
-    args = list(args)
-    for i, arg in zip(idxs, vals):
-        args.insert(i, arg)
-    return tuple(args)
 
 
 class Local:
@@ -213,7 +218,7 @@ class Local:
 
     def wait(self):
         "Mock of Distributed.wait"
-        return
+        return self
 
     def index(self, key):
         "Mock of Distributed.index"
