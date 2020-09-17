@@ -91,7 +91,7 @@ class CommLocal(Local):
     @property
     def coords(self):
         "Mock of Cartesian.coords"
-        return (0,)
+        return ((0,),)
 
     @property
     def procs(self):

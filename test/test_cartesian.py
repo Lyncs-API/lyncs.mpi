@@ -1,3 +1,4 @@
+from pytest import raises
 from lyncs_mpi import Client, CartComm
 from lyncs_mpi.distributed import *
 from lyncs_mpi.cartesian import *
@@ -17,6 +18,19 @@ def test_commlocal():
     assert foo.client == None
     assert foo.workers == ("localhost",)
     assert foo in foo
+
+    assert foo.comm is None
+    assert foo.coords == ((0,),)
+    assert foo.procs == (1,)
+    assert foo.ranks == (0,)
+
+    assert (
+        foo[0]
+        == foo["localhost"]
+        == foo[
+            0,
+        ]
+    )
 
     arr = foo.ones((4, 2))
     assert arr.shape == (4, 2)
@@ -41,8 +55,37 @@ def test_cartesian():
     assert foo.ten() == 10
     assert foo.values() == (1, 1)
 
+    assert foo.comm is cart
+    assert foo.coords == ((0,), (1,))
+    assert foo.procs == (2,)
+    assert foo.ranks == (
+        0,
+        1,
+    )
+
+    assert (
+        foo[0]
+        == foo[
+            0,
+        ]
+    )
+    assert (
+        foo[1]
+        == foo[
+            1,
+        ]
+    )
+
     assert isinstance(foo.comm, CartComm)
     arr = foo.ones((2, 2))
     assert arr.shape == (4, 2)
     assert isinstance(arr, Array)
     assert arr.sum() == 8
+
+    with raises(ValueError):
+        cart2 = client.create_comm(1).create_cart((1,))
+        foo = CartTest(cart2, comm=cart)
+
+    with raises(ValueError):
+        init = client.scatter((1, 2))
+        foo = CartTest(init)
