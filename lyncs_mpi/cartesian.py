@@ -49,18 +49,18 @@ class Cartesian(Distributed):
         # Looking for cartesian comm
         comms = None
         for arg in chain(args, kwargs.values()):
-            if isinstance(arg, (CartComm, Cartesian)):
-                if comms is not None:
+            if isinstance(arg, Cartesian):
+                arg = arg.comm
+            if isinstance(arg, CartComm):
+                if comms is not None and comms != arg:
                     raise ValueError(
-                        "Multiple cartesian communicator passed to class init"
+                        "Different cartesian communicator passed to class init"
                     )
                 comms = arg
         if comms is None:
             raise ValueError(
                 "Cartesian communicator not found in class init in parallel mode"
             )
-        if isinstance(comms, Cartesian):
-            comms = comms.comm
         return Cartesian(super()._remote_call(*args, **kwargs), comms)
 
     @wraps(CartComm.index)

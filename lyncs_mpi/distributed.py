@@ -13,7 +13,7 @@ from functools import wraps
 from inspect import isclass
 from distributed.client import Future
 from distributed import as_completed
-from lyncs_utils import isiterable, interactive, compute_property
+from lyncs_utils import isiterable, interactive, compute_property, apply_annotations
 
 
 def isdistributed(val):
@@ -97,13 +97,13 @@ class Distributed:
 
     @classmethod
     def _remote_call(cls, fnc, *args, **kwargs):
-        if isinstance(fnc, str):
-            call = lambda self, *args, **kwargs: getattr(self, fnc)(*args, **kwargs)
-        elif isdistributed(fnc):
+        if isdistributed(fnc):
             call = lambda fnc, *args, **kwargs: fnc(*args, **kwargs)
             args = (fnc,) + args
         else:
+            assert callable(fnc), f"Given {fnc} is not callable"
             call = fnc
+            args, kwargs = apply_annotations(fnc, *args, **kwargs)
 
         keys = []
         vals = []
@@ -147,7 +147,7 @@ class Distributed:
             finalize = self._get_finalize(attr)
             if callable(attr):
                 fnc = lambda *args, **kwargs: finalize(
-                    self._remote_call(key, self, *args, **kwargs)
+                    self._remote_call(attr, self, *args, **kwargs)
                 )
                 if interactive():
                     return wraps(attr)(fnc)
@@ -166,6 +166,10 @@ class Distributed:
     def __call__(self, *args, **kwargs):
         return self._remote_call(self, *args, **kwargs)
 
+    def __eq__(self, other):
+        if isinstance(other, Distributed):
+            other = other.dask
+        return self.dask == other
 
 def insert_args(idxs, vals, *args):
     "Inserts vals into args at idxs position"
@@ -238,9 +242,6 @@ class DistributedClass(type):
         "Checks that cls does not have methods of Local and adds Local to bases"
         local = cls.local_class()
         methods = set(dir(local)).difference(dir(object) + ["__module__"])
-        same = methods.intersection(class_attrs)
-        if same:
-            raise KeyError(f"Class {name} cannot define {same}")
         if local not in bases:
             bases = (local,) + bases
         return super().__new__(cls, name, bases, class_attrs, **kwargs)

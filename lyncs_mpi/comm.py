@@ -42,7 +42,7 @@ class Comm(Distributed):
         "Mapping between ranks and workers"
         return dict(zip(self.ranks, self.workers))
 
-    def create_cart(self, dims, periods=None, reorder=False):
+    def create_cart(self, dims, periods=True, reorder=False):
         """
         Makes a new communicator to which topology information has been attached
 
