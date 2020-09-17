@@ -21,3 +21,8 @@ def test_comm():
     assert cart.dims == (2, 2)
     assert all(cart.periods)
     assert cart[0] == cart[cart.ranks_coords[0]]
+
+    comm1 = client.create_comm(2)
+    comm2 = client.create_comm(2, exclude=comm1.workers)
+    assert not set(comm1.workers).intersection(comm2.workers)
+    assert set(comm1.workers + comm2.workers) == set(client.workers)
