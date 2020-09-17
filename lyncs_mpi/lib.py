@@ -48,15 +48,3 @@ def finalized():
     val = c_int(0)
     lib.MPI_Finalized(val)
     return bool(val)
-
-
-def initialize():
-    "Initializes MPI"
-    assert not initialized() and not finalized()
-    lib.MPI_Init(nullptr, nullptr)
-
-
-def finalize():
-    "Finalizes MPI"
-    assert initialized() and not finalized()
-    lib.MPI_Finalize()
