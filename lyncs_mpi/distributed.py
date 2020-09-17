@@ -6,6 +6,7 @@ __all__ = [
     "Distributed",
     "Local",
     "DistributedClass",
+    "results",
 ]
 
 from itertools import chain
@@ -24,6 +25,11 @@ def isdistributed(val):
 def anydistributed(*args, **kwargs):
     "Returns if any of the arguments is a Dask distributed object"
     return any((isdistributed(val) for val in chain(args, kwargs.values())))
+
+
+def results(*args):
+    "Returns the results of the futures in args"
+    return tuple(arg.result() if isinstance(arg, Future) else arg for arg in args)
 
 
 class Distributed:
@@ -73,7 +79,7 @@ class Distributed:
     def index(self, key):
         "Returns the index of the dask futures (self.dask) for a given key"
         if isinstance(key, str) in self.workers:
-            return self.workers
+            return self.workers.index(key)
         raise KeyError(f"Key {key} not found")
 
     def __iter__(self):
@@ -171,6 +177,7 @@ class Distributed:
             other = other.dask
         return self.dask == other
 
+
 def insert_args(idxs, vals, *args):
     "Inserts vals into args at idxs position"
     if not idxs:
@@ -241,7 +248,6 @@ class DistributedClass(type):
     def __new__(cls, name, bases, class_attrs, **kwargs):
         "Checks that cls does not have methods of Local and adds Local to bases"
         local = cls.local_class()
-        methods = set(dir(local)).difference(dir(object) + ["__module__"])
         if local not in bases:
             bases = (local,) + bases
         return super().__new__(cls, name, bases, class_attrs, **kwargs)

@@ -6,8 +6,7 @@ __all__ = [
 ]
 
 from lyncs_utils import compute_property
-from .abc import Result
-from .distributed import Distributed
+from .distributed import Distributed, results
 
 
 class Comm(Distributed):
@@ -18,11 +17,12 @@ class Comm(Distributed):
     ]
 
     def __init__(self, comms):
-        super().__init__(comms, cls=self.MPItype)
+        super().__init__(comms, cls=self.type)
 
-    @classmethod
-    def MPItype(cls):
+    @property
+    def type(self):
         "Returns the MPI type of the class"
+        # pylint: disable=import-outside-toplevel
         from mpi4py import MPI
 
         return MPI.Comm
@@ -35,7 +35,7 @@ class Comm(Distributed):
     @compute_property
     def ranks(self):
         "Ranks of the communicator with respective worker"
-        return Result(self.rank)
+        return results(*self.rank)
 
     @property
     def ranks_workers(self):
@@ -77,16 +77,18 @@ class CartComm(Comm):
 
     def __init__(self, comms):
         super().__init__(comms)
-        topos = Result(self.Get_topo())
+        topos = results(*self.Get_topo())
         self._dims = tuple(topos[0][0])
         self._periods = tuple(bool(_) for _ in topos[0][1])
         self._coords = tuple(tuple(topo[2]) for topo in topos)
 
-    @classmethod
-    def MPItype(cls):
+    @property
+    def type(self):
+        "Returns the MPI type of the class"
+        # pylint: disable=import-outside-toplevel
         from mpi4py import MPI
 
-        return MPI.CartComm
+        return MPI.Cartcomm
 
     @property
     def dims(self):

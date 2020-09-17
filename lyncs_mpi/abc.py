@@ -1,6 +1,13 @@
 """
 Some ABC to be used for typing parallel classes
 """
+# pylint: disable=too-few-public-methods
+
+__all__ = [
+    "Result",
+    "Global",
+    "Array",
+]
 
 from abc import ABC
 from numpy import ndarray
