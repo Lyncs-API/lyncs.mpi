@@ -218,17 +218,18 @@ class Client(_Client):
 
         return selected
 
-    def create_comm(self, **kwargs):
+    @wraps(select_workers)
+    def create_comm(self, *args, **kwargs):
         """
         Return a MPI communicator involving workers available by the client.
 
         Parameters
         ----------
-        **kwargs: params
+        *args, **kwargs: params
             Following list of parameters for the function select_workers.
         """
 
-        workers = self.select_workers(**kwargs)
+        workers = self.select_workers(*args, **kwargs)
         ranks = [[self.ranks[w] for w in workers]] * len(workers)
         ranks = self.scatter(ranks, workers=workers, hash=False, broadcast=False)
 
