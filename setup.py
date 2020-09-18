@@ -3,6 +3,7 @@ from lyncs_setuptools import setup, CMakeExtension
 requirements = [
     "mpi4py",
     "lyncs-cppyy",
+    "lyncs-utils",
     "dask",
     "distributed",
     "dask[array]",
