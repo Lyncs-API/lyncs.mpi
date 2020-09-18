@@ -5,21 +5,21 @@ from lyncs_mpi.testing import Test
 
 
 def test_local():
-    foo = Test(10)
-    assert foo.foo == 10
-    assert isinstance(foo, Local)
-    assert isinstance(foo, Test)
-    assert len(foo) == 1
-    assert foo.client == None
-    assert foo.workers == ("localhost",)
-    assert foo in foo
-    assert foo["localhost"] is foo
-    assert foo.dask is None
-    assert foo.type is Test
-    assert foo.wait() is foo
+    test = Test(10)
+    assert test.value == 10
+    assert isinstance(test, Local)
+    assert isinstance(test, Test)
+    assert len(test) == 1
+    assert test.client == None
+    assert test.workers == ("localhost",)
+    assert test in test
+    assert test["localhost"] is test
+    assert test.dask is None
+    assert test.type is Test
+    assert test.wait() is test
 
     with raises(KeyError):
-        foo["bar"]
+        test["bar"]
 
     with raises(ValueError):
         Distributed._remote_call(int, 1)
@@ -27,12 +27,12 @@ def test_local():
     with raises(TypeError):
         Distributed._remote_call(1)
 
-    assert Distributed._set_and_return(foo, "foo", 1) is foo
-    assert foo.foo == 1
+    assert Distributed._set_and_return(test, "value", 1) is test
+    assert test.value == 1
 
     assert Distributed._insert_args((), (), 1, 2, 3) == (1, 2, 3)
     assert Distributed._insert_args((0, 2), (1, 3), 2) == (1, 2, 3)
-    assert foo.foo == 1
+    assert test.value == 1
 
 
 def test_distributed():
@@ -41,34 +41,34 @@ def test_distributed():
     assert len(init) == 2
     assert len(set(client.who_has(init))) == 2
 
-    foo = Test(init)
-    assert isinstance(foo, Distributed)
-    assert isinstance(foo, Test)
-    assert foo.client is client
-    assert len(foo) == 2
-    assert set(foo.workers) == set(client.who_has(init))
-    # assert set(foo.workers) == set(client.who_has(foo))
-    assert foo.ten == 10
-    assert foo.values() == (1, 2)
+    test = Test(init)
+    assert isinstance(test, Distributed)
+    assert isinstance(test, Test)
+    assert test.client is client
+    assert len(test) == 2
+    assert set(test.workers) == set(client.who_has(init))
+    # assert set(test.workers) == set(client.who_has(test))
+    assert test.ten == 10
+    assert test.values() == (1, 2)
 
-    foo = Test(foo=init)
-    assert isinstance(foo, Distributed)
-    assert isinstance(foo, Test)
-    assert foo.client is client
-    assert set(foo.workers) == set(client.who_has(init))
-    # assert set(foo.workers) == set(client.who_has(foo))
-    assert foo.ten == 10
-    assert foo.values() == (1, 2)
+    test = Test(value=init)
+    assert isinstance(test, Distributed)
+    assert isinstance(test, Test)
+    assert test.client is client
+    assert set(test.workers) == set(client.who_has(init))
+    # assert set(test.workers) == set(client.who_has(test))
+    assert test.ten == 10
+    assert test.values() == (1, 2)
 
-    assert foo.foo.type == int
+    assert test.value.type == int
 
-    foo.foo = "bar"
-    assert foo.foo.type == str
+    test.value = "bar"
+    assert test.value.type == str
 
     with raises(TypeError):
-        foo(1).wait()
+        test(1).wait()
 
-    assert foo[foo.workers[0]] is next(iter(foo))
+    assert test[test.workers[0]] is next(iter(test))
 
     with raises(KeyError):
-        foo["bar"]
+        test["bar"]

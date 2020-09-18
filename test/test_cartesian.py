@@ -8,26 +8,26 @@ from numpy import ndarray
 
 
 def test_commlocal():
-    foo = CartTest(10)
-    assert foo.foo == 10
-    assert isinstance(foo, CommLocal)
-    assert isinstance(foo, Local)
-    assert isinstance(foo, CartTest)
-    assert isinstance(foo, Test)
-    assert len(foo) == 1
-    assert foo.client == None
-    assert foo.workers == ("localhost",)
-    assert foo in foo
+    test = CartTest(10)
+    assert test.value == 10
+    assert isinstance(test, CommLocal)
+    assert isinstance(test, Local)
+    assert isinstance(test, CartTest)
+    assert isinstance(test, Test)
+    assert len(test) == 1
+    assert test.client == None
+    assert test.workers == ("localhost",)
+    assert test in test
 
-    assert foo.comm is None
-    assert foo.coords == ((0,),)
-    assert foo.procs == (1,)
-    assert foo.ranks == (0,)
+    assert test.comm is None
+    assert test.coords == ((0,),)
+    assert test.procs == (1,)
+    assert test.ranks == (0,)
 
-    assert foo[0] == foo["localhost"]
-    assert foo[0] == foo[0, 0, 0, 0, 0]
+    assert test[0] == test["localhost"]
+    assert test[0] == test[0, 0, 0, 0, 0]
 
-    arr = foo.ones((4, 2))
+    arr = test.ones((4, 2))
     assert arr.shape == (4, 2)
     assert isinstance(arr, ndarray)
     assert arr.sum() == 8
@@ -38,36 +38,39 @@ def test_cartesian():
     cart = client.create_comm().create_cart((2,))
     assert len(cart) == 2
 
-    foo = CartTest(1, comm=cart)
-    assert isinstance(foo, Cartesian)
-    assert isinstance(foo, Distributed)
-    assert isinstance(foo, CartTest)
-    assert isinstance(foo, Test)
-    assert foo.client is client
-    assert len(foo) == 2
-    assert set(foo.workers) == set(cart.workers)
-    # assert set(foo.workers) == set(client.who_has(foo))
-    assert foo.ten == 10
-    assert foo.values() == (1, 1)
+    test = CartTest(1, comm=cart)
+    assert isinstance(test, Cartesian)
+    assert isinstance(test, Distributed)
+    assert isinstance(test, CartTest)
+    assert isinstance(test, Test)
+    assert test.client is client
+    assert len(test) == 2
+    assert set(test.workers) == set(cart.workers)
+    # assert set(test.workers) == set(client.who_has(test))
+    assert test.ten == 10
+    assert test.values() == (1, 1)
 
-    assert foo.comm is cart
-    assert foo.coords == ((0,), (1,))
-    assert foo.procs == (2,)
-    assert foo.ranks == (0, 1)
+    assert test.comm is cart
+    assert test.coords == ((0,), (1,))
+    assert test.procs == (2,)
+    assert test.ranks == (0, 1)
 
-    assert foo[0] == foo[0, 0]
-    assert foo[1] == foo[1, 0]
+    assert test[0] == test[0, 0]
+    assert test[1] == test[1, 0]
 
-    assert isinstance(foo.comm, CartComm)
-    arr = foo.ones((2, 2))
+    assert isinstance(test.comm, CartComm)
+    arr = test.ones((2, 2))
     assert arr.shape == (4, 2)
     assert isinstance(arr, Array)
     assert arr.sum() == 8
 
+    test.value = 10
+    assert (test.mul_by_value(arr) == arr * 10).all()
+
     with raises(ValueError):
         cart2 = client.create_comm(1).create_cart((1,))
-        foo = CartTest(cart2, comm=cart)
+        test = CartTest(cart2, comm=cart)
 
     with raises(ValueError):
         init = client.scatter((1, 2))
-        foo = CartTest(init)
+        test = CartTest(init)
