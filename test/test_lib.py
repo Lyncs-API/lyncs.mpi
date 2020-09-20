@@ -1,4 +1,4 @@
-from lyncs_mpi import initialized, initialize, finalize, finalized
+from lyncs_mpi import initialized, finalized
 
 
 def test_init():
@@ -8,6 +8,5 @@ def test_init():
 
     assert initialized() == True
     assert MPI.Is_initialized() == True
-    finalize()
-    assert finalized() == True
-    assert MPI.Is_finalized() == True
+    assert finalized() == False
+    assert MPI.Is_finalized() == False

@@ -13,7 +13,7 @@ from math import ceil
 from dask.array import Array, zeros, ones, empty, full
 from dask.array.core import normalize_chunks
 from dask.distributed import wait as wait_for
-from .dask_mpi import Cartcomm
+from .comm import CartComm
 
 
 def get_cart_arrays(cart, array, dims_axes=None, wait=True):
@@ -22,7 +22,7 @@ def get_cart_arrays(cart, array, dims_axes=None, wait=True):
 
     Parameters
     ----------
-    cart: Cartcomm
+    cart: CartComm
         A cartesian communicator with dimensions equal to the number of chunks
     array: Dask Array
         A dask array distributed on the cartesian communicator
@@ -33,8 +33,8 @@ def get_cart_arrays(cart, array, dims_axes=None, wait=True):
         for checking the actual list of workers.
         Disable only if you are sure of the location of the array.
     """
-    if not isinstance(cart, Cartcomm):
-        cart = Cartcomm(cart)
+    if not isinstance(cart, CartComm):
+        cart = CartComm(cart)
 
     # As first checking if it is compatible and getting the axes
     cart_axes, arr_axes = get_axes(cart.dims, dims_axes, array.shape, array.chunks)
@@ -68,14 +68,14 @@ def get_cart_arrays(cart, array, dims_axes=None, wait=True):
     return arrays
 
 
-def cart_array(cart, arrays, shape, dims_axes=None, chunks=None, dtype=None):
+def cart_array(cart, arrays, shape=None, dims_axes=None, chunks=None, dtype=None):
     """
     Turns a set of future arrays (result of a distributed operation),
     associated to a cartesian communicator, into a Dask Array.
 
     Parameters
     ----------
-    cart: Cartcomm
+    cart: CartComm
         A cartesian communicator with dimensions equal to the number of chunks
     arrays: tuple(futures)
         A set of future arrays associated to the cart
@@ -88,8 +88,8 @@ def cart_array(cart, arrays, shape, dims_axes=None, chunks=None, dtype=None):
     dtype: tuple(int)
         The dtype of the array
     """
-    if not isinstance(cart, Cartcomm):
-        cart = Cartcomm(cart)
+    if not isinstance(cart, CartComm):
+        cart = CartComm(cart)
 
     if not len(arrays) == len(cart):
         raise ValueError("arrays and cart must have the same length")
@@ -113,6 +113,11 @@ def cart_array(cart, arrays, shape, dims_axes=None, chunks=None, dtype=None):
                     "Arrays with non-uniform chunks not supported yet"
                 )
 
+    if shape is None:
+        shape = list(chunks)
+        for (_, _l), _i in zip(*normalize_cart_dims(cart.dims, dims_axes, len(chunks))):
+            shape[_i] *= _l
+
     chunks = normalize_chunks(chunks, shape, dtype=dtype)
 
     cart_axes, arr_axes = get_axes(cart.dims, dims_axes, shape, chunks)
@@ -125,7 +130,7 @@ def cart_array(cart, arrays, shape, dims_axes=None, chunks=None, dtype=None):
         for _i, _j in zip(coords, arr_axes):
             key[_j] = _i
 
-        name = arrays[0].key
+        name = next(iter(arrays)).key
         if isinstance(name, tuple):
             name = name[0]
         assert isinstance(name, str)
@@ -140,7 +145,9 @@ def normalize_cart_dims(dims, dims_axes=None, shape_size=None):
 
     cart_dims = tuple((_i, _l) for _i, _l in enumerate(dims) if _l > 1)
 
-    if dims_axes is not None:
+    if dims_axes is None:
+        dims_axes = tuple(_i for _i, _l in cart_dims)
+    else:
         if not len(dims_axes) == len(dims):
             raise ValueError(
                 f"""
@@ -149,12 +156,13 @@ def normalize_cart_dims(dims, dims_axes=None, shape_size=None):
             )
 
         dims_axes = tuple(dims_axes[_i] for _i, _l in cart_dims)
-        if not len(set(dims_axes)) == len(dims_axes):
-            raise ValueError(f"Repeated values in dims_axes {dims_axes}")
-        if not set(dims_axes) <= set(range(shape_size)):
-            raise ValueError(
-                f"Values in dims_axes {dims_axes} out of shape range {shape_size}"
-            )
+
+    if not len(set(dims_axes)) == len(dims_axes):
+        raise ValueError(f"Repeated values in dims_axes {dims_axes}")
+    if not set(dims_axes) <= set(range(shape_size)):
+        raise ValueError(
+            f"Values in dims_axes {dims_axes} out of shape range {shape_size}"
+        )
 
     return cart_dims, dims_axes
 
@@ -176,7 +184,7 @@ def get_axes(dims, dims_axes, shape, chunks):
             """
         )
 
-    # Reording cart.dims with dims_axes
+    # Reordering cart.dims with dims_axes
     if dims_axes is not None:
         aaxes = tuple(_i for _i, _l in arr_dims)
         if not sorted(dims_axes) == sorted(aaxes):
@@ -213,8 +221,8 @@ def array_wrapper(mth):
     """
 
     def wrapper(cart, shape, dims_axes=None, chunks=None, **kwargs):
-        if not isinstance(cart, Cartcomm):
-            cart = Cartcomm(cart)
+        if not isinstance(cart, CartComm):
+            cart = CartComm(cart)
 
         if chunks is None:
             chunks = list(shape)
@@ -263,3 +271,8 @@ cart_zeros = array_wrapper(zeros)
 cart_ones = array_wrapper(ones)
 cart_empty = array_wrapper(empty)
 cart_full = array_wrapper(full)
+CartComm.zeros = cart_zeros
+CartComm.ones = cart_ones
+CartComm.empty = cart_empty
+CartComm.full = cart_full
+CartComm.array = cart_array

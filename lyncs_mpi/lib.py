@@ -5,12 +5,9 @@ __all__ = [
     "default_comm",
     "initialized",
     "finalized",
-    "initialize",
-    "finalize",
 ]
 
 from ctypes import c_int
-from cppyy import nullptr
 from lyncs_cppyy import Lib
 from .config import MPI_INCLUDE_DIRS, MPI_LIBRARIES
 
@@ -48,15 +45,3 @@ def finalized():
     val = c_int(0)
     lib.MPI_Finalized(val)
     return bool(val)
-
-
-def initialize():
-    "Initializes MPI"
-    assert not initialized() and not finalized()
-    lib.MPI_Init(nullptr, nullptr)
-
-
-def finalize():
-    "Finalizes MPI"
-    assert initialized() and not finalized()
-    lib.MPI_Finalize()
