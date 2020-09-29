@@ -19,10 +19,5 @@ setup(
     exclude=["*.config"],
     data_files=[(".", ["config.py.in"])],
     install_requires=requirements,
-    extras_require={
-        "test": [
-            "pytest",
-            "pytest-cov",
-        ]
-    },
+    extras_require={"test": ["pytest", "pytest-cov", "pytest-benchmark"]},
 )
