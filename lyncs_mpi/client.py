@@ -8,6 +8,7 @@ __all__ = [
 ]
 
 import os
+import sys
 import time
 import shutil
 import signal
@@ -38,7 +39,7 @@ class Client(_Client):
     automatizing the process of creating MPI-distributed dask workers.
     """
 
-    def __init__(self, num_workers=None, threads_per_worker=1, launch=None):
+    def __init__(self, num_workers=None, threads_per_worker=1, launch=None, out=None, err=None):
         """
         Returns a Client connected to a cluster of `num_workers` workers.
         """
@@ -71,8 +72,6 @@ class Client(_Client):
 
             # Since dask-mpi produces several file we create a temporary directory
             self._dir = tempfile.mkdtemp()
-            self._out = self._dir + "/log.out"
-            self._err = self._dir + "/log.err"
 
             # The command runs in the background (_bg=True)
             # and the stdout(err) is stored in self._out(err)
@@ -88,8 +87,8 @@ class Client(_Client):
                 "--scheduler-file",
                 "scheduler.json",
                 _bg=True,
-                _out=self._out,
-                _err=self._err,
+                _out=out or sys.stdout,
+                _err=err or sys.stderr,
             )
             sh.cd(pwd)
 
