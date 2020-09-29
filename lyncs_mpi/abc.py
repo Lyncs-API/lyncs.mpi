@@ -10,6 +10,7 @@ __all__ = [
 ]
 
 from abc import ABC
+from functools import partial
 from numpy import ndarray
 from dask.array import Array as daskArray
 from .distributed import results, Distributed
@@ -38,10 +39,10 @@ class Constant(Global):
     "Like Global, but the value is stored for future use and avoiding remote call"
 
     def __new__(cls, ftrs, caller=None, key=None, **kwargs):
-        if not key:
-            raise RuntimeError("Expected a key")
-        if not caller or not isinstance(caller, Distributed):
-            raise RuntimeError(f"Expected a Distributed caller. Got {caller}")
+        assert key, "Expected a key"
+        assert caller and isinstance(
+            caller, Distributed
+        ), "Expected a Distributed caller. Got {caller}"
         ret = super().__new__(cls, ftrs, caller=caller, key=key, **kwargs)
         caller._constants[key] = ret
         return ret
@@ -50,9 +51,25 @@ class Constant(Global):
 class Array(Result):
     "Returns a dask array supposing the futures output to be numpy-like arrays"
 
-    def __new__(cls, ftrs, **kwargs):
+    def __new__(cls, *args, **kwargs):
+        if not args:
+            return partial(cls, **kwargs)
+
+        assert len(args) == 1
+        ftrs = args[0]
         assert isinstance(ftrs, Cartesian)
-        return ftrs.comm.array(ftrs)
+
+        array_kwargs = {}
+        for key in ("shape", "chunks", "dtype", "dims_axes"):
+            if key not in kwargs:
+                continue
+            val = kwargs[key]
+            if callable(val):
+                assert "caller" in kwargs
+                val = val(kwargs["caller"])
+            array_kwargs[key] = val
+
+        return ftrs.comm.array(ftrs, **array_kwargs)
 
 
 Array.register(ndarray)

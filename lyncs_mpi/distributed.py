@@ -100,6 +100,12 @@ class Distributed:
             return cls._get_finalize(fnc.fget)
         return lambda _, **__: _
 
+    def _finalize(self, fnc, value, **kwargs):
+        try:
+            return fnc(value, caller=self, **kwargs)
+        except TypeError:
+            return fnc(value)
+
     @staticmethod
     def _insert_args(idxs, vals, *args):
         "Auxiliary function that inserts vals into args at idxs position used by _remote_call"
@@ -156,26 +162,24 @@ class Distributed:
         )
 
     def __getattr__(self, key):
-        if key in dir(type(self)):
-            return getattr(type(self), key).__get__(self)
         if key in self._constants:
             return self._constants[key]
+        if key in dir(type(self)):
+            return getattr(type(self), key).__get__(self)
         try:
             cls = self.type
             attr = getattr(cls, key)
             finalize = self._get_finalize(attr)
             if callable(attr):
-                fnc = lambda *args, **kwargs: finalize(
-                    self._remote_call(attr, self, *args, **kwargs)
+                fnc = lambda *args, **kwargs: self._finalize(
+                    finalize, self._remote_call(attr, self, *args, **kwargs)
                 )
                 if interactive():
                     return wraps(attr)(fnc)
                 return fnc
-            ftrs = self._remote_call(getattr, self, key)
-            try:
-                return finalize(ftrs, caller=self, key=key)
-            except TypeError:
-                return finalize(ftrs)
+            return self._finalize(
+                finalize, self._remote_call(getattr, self, key), key=key
+            )
         except AttributeError:
             pass
         return self._remote_call(getattr, self, key)

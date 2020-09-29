@@ -8,7 +8,7 @@ from numpy import ndarray
 
 
 def test_commlocal():
-    test = CartesianTest(10)
+    test = CartesianTest((4, 2), value=10)
     assert test.value == 10
     assert isinstance(test, CommLocal)
     assert isinstance(test, Local)
@@ -27,7 +27,7 @@ def test_commlocal():
     assert test[0] == test["localhost"]
     assert test[0] == test[0, 0, 0, 0, 0]
 
-    arr = test.ones((4, 2))
+    arr = test.ones()
     assert arr.shape == (4, 2)
     assert isinstance(arr, ndarray)
     assert arr.sum() == 8
@@ -38,7 +38,7 @@ def test_cartesian():
     cart = client.create_comm().create_cart((2,))
     assert len(cart) == 2
 
-    test = CartesianTest(1, comm=cart)
+    test = CartesianTest((2, 2), value=1, comm=cart)
     assert isinstance(test, Cartesian)
     assert isinstance(test, Distributed)
     assert isinstance(test, CartesianTest)
@@ -46,7 +46,7 @@ def test_cartesian():
     assert test.client is client
     assert len(test) == 2
     assert set(test.workers) == set(cart.workers)
-    # assert set(test.workers) == set(client.who_has(test))
+
     assert test.ten == 10
     assert test.values() == (1, 1)
 
@@ -59,7 +59,7 @@ def test_cartesian():
     assert test[1] == test[1, 0]
 
     assert isinstance(test.comm, CartComm)
-    arr = test.ones((2, 2))
+    arr = test.ones()
     assert arr.shape == (4, 2)
     assert isinstance(arr, Array)
     assert arr.sum() == 8
