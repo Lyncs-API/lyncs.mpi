@@ -9,7 +9,7 @@ from .distributed import DistributedClass
 from .cartesian import CartesianClass
 
 
-class Test(metaclass=DistributedClass):
+class DistributedTest(metaclass=DistributedClass):
     "A distributed test class"
 
     def __init__(self, value=None):
@@ -25,7 +25,7 @@ class Test(metaclass=DistributedClass):
         return self.value
 
 
-class CartTest(Test, metaclass=CartesianClass):
+class CartesianTest(DistributedTest, metaclass=CartesianClass):
     "A cartesian distributed test class"
 
     def __init__(self, value=None, comm=None):
