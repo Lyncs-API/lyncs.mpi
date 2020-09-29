@@ -39,10 +39,12 @@ class Distributed:
         "_dask",
         "_workers",
         "_type",
+        "_constants",
     ]
 
     def __init__(self, dask, cls=None):
         self._dask = tuple(dask)
+        self._constants = dict()
         if cls:
             self._type = cls
 
@@ -96,7 +98,13 @@ class Distributed:
                 return ret
         if isinstance(fnc, property):
             return cls._get_finalize(fnc.fget)
-        return lambda _: _
+        return lambda _, **__: _
+
+    def _finalize(self, fnc, value, **kwargs):
+        try:
+            return fnc(value, caller=self, **kwargs)
+        except TypeError:
+            return fnc(value)
 
     @staticmethod
     def _insert_args(idxs, vals, *args):
@@ -148,11 +156,14 @@ class Distributed:
                     **dict(zip(keys[n_args:], vals[n_args:])),
                 ),
                 *vals,
+                pure=False,  # TODO: add support for pure functions
             ),
             cls=call if isclass(call) else None,
         )
 
     def __getattr__(self, key):
+        if key in self._constants:
+            return self._constants[key]
         if key in dir(type(self)):
             return getattr(type(self), key).__get__(self)
         try:
@@ -160,13 +171,15 @@ class Distributed:
             attr = getattr(cls, key)
             finalize = self._get_finalize(attr)
             if callable(attr):
-                fnc = lambda *args, **kwargs: finalize(
-                    self._remote_call(attr, self, *args, **kwargs)
+                fnc = lambda *args, **kwargs: self._finalize(
+                    finalize, self._remote_call(attr, self, *args, **kwargs)
                 )
                 if interactive():
                     return wraps(attr)(fnc)
                 return fnc
-            return finalize(self._remote_call(getattr, self, key))
+            return self._finalize(
+                finalize, self._remote_call(getattr, self, key), key=key
+            )
         except AttributeError:
             pass
         return self._remote_call(getattr, self, key)

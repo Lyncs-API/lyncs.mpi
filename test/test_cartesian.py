@@ -2,18 +2,18 @@ from pytest import raises
 from lyncs_mpi import Client, CartComm
 from lyncs_mpi.distributed import *
 from lyncs_mpi.cartesian import *
-from lyncs_mpi.testing import Test, CartTest
+from lyncs_mpi.testing import DistributedTest, CartesianTest
 from dask.array import Array
 from numpy import ndarray
 
 
 def test_commlocal():
-    test = CartTest(10)
+    test = CartesianTest((4, 2), value=10)
     assert test.value == 10
     assert isinstance(test, CommLocal)
     assert isinstance(test, Local)
-    assert isinstance(test, CartTest)
-    assert isinstance(test, Test)
+    assert isinstance(test, CartesianTest)
+    assert isinstance(test, DistributedTest)
     assert len(test) == 1
     assert test.client == None
     assert test.workers == ("localhost",)
@@ -27,7 +27,7 @@ def test_commlocal():
     assert test[0] == test["localhost"]
     assert test[0] == test[0, 0, 0, 0, 0]
 
-    arr = test.ones((4, 2))
+    arr = test.ones()
     assert arr.shape == (4, 2)
     assert isinstance(arr, ndarray)
     assert arr.sum() == 8
@@ -38,15 +38,15 @@ def test_cartesian():
     cart = client.create_comm().create_cart((2,))
     assert len(cart) == 2
 
-    test = CartTest(1, comm=cart)
+    test = CartesianTest((2, 2), value=1, comm=cart)
     assert isinstance(test, Cartesian)
     assert isinstance(test, Distributed)
-    assert isinstance(test, CartTest)
-    assert isinstance(test, Test)
+    assert isinstance(test, CartesianTest)
+    assert isinstance(test, DistributedTest)
     assert test.client is client
     assert len(test) == 2
     assert set(test.workers) == set(cart.workers)
-    # assert set(test.workers) == set(client.who_has(test))
+
     assert test.ten == 10
     assert test.values() == (1, 1)
 
@@ -59,7 +59,7 @@ def test_cartesian():
     assert test[1] == test[1, 0]
 
     assert isinstance(test.comm, CartComm)
-    arr = test.ones((2, 2))
+    arr = test.ones()
     assert arr.shape == (4, 2)
     assert isinstance(arr, Array)
     assert arr.sum() == 8
@@ -69,8 +69,8 @@ def test_cartesian():
 
     with raises(ValueError):
         cart2 = client.create_comm(1).create_cart((1,))
-        test = CartTest(cart2, comm=cart)
+        test = CartesianTest(cart2, comm=cart)
 
     with raises(ValueError):
         init = client.scatter((1, 2))
-        test = CartTest(init)
+        test = CartesianTest(init)

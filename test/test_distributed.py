@@ -1,22 +1,25 @@
 from pytest import raises
 from lyncs_mpi import Client
 from lyncs_mpi.distributed import *
-from lyncs_mpi.testing import Test
+from lyncs_mpi.testing import DistributedTest
 
 
 def test_local():
-    test = Test(10)
+    test = DistributedTest(10)
     assert test.value == 10
     assert isinstance(test, Local)
-    assert isinstance(test, Test)
+    assert isinstance(test, DistributedTest)
     assert len(test) == 1
     assert test.client == None
     assert test.workers == ("localhost",)
     assert test in test
     assert test["localhost"] is test
     assert test.dask is None
-    assert test.type is Test
+    assert test.type is DistributedTest
     assert test.wait() is test
+
+    assert test.ten == 10
+    assert test.range(5) == range(5)
 
     with raises(KeyError):
         test["bar"]
@@ -41,9 +44,9 @@ def test_distributed():
     assert len(init) == 2
     assert len(set(client.who_has(init))) == 2
 
-    test = Test(init)
+    test = DistributedTest(init)
     assert isinstance(test, Distributed)
-    assert isinstance(test, Test)
+    assert isinstance(test, DistributedTest)
     assert test.client is client
     assert len(test) == 2
     assert set(test.workers) == set(client.who_has(init))
@@ -51,14 +54,16 @@ def test_distributed():
     assert test.ten == 10
     assert test.values() == (1, 2)
 
-    test = Test(value=init)
+    test = DistributedTest(value=init)
     assert isinstance(test, Distributed)
-    assert isinstance(test, Test)
+    assert isinstance(test, DistributedTest)
     assert test.client is client
     assert set(test.workers) == set(client.who_has(init))
-    # assert set(test.workers) == set(client.who_has(test))
     assert test.ten == 10
+    assert "ten" in test._constants
     assert test.values() == (1, 2)
+
+    assert test.range(5) == range(5)
 
     assert test.value.type == int
 
