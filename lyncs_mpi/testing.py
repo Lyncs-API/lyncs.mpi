@@ -4,7 +4,7 @@ Just some simple classes used by the tests.
 """
 
 import numpy as np
-from .abc import Result, Global, Array
+from .abc import Result, Global, Constant, Array
 from .distributed import DistributedClass
 from .cartesian import CartesianClass
 
@@ -16,9 +16,13 @@ class DistributedTest(metaclass=DistributedClass):
         self.value = value
 
     @property
-    def ten(self) -> Global:
+    def ten(self) -> Constant:
         "Returns 10"
         return 10
+
+    def range(self, n) -> Global:
+        "Returns range(n)"
+        return range(n)
 
     def values(self) -> Result:
         "Returns the values"

@@ -18,6 +18,9 @@ def test_local():
     assert test.type is DistributedTest
     assert test.wait() is test
 
+    assert test.ten == 10
+    assert test.range(5) == range(5)
+
     with raises(KeyError):
         test["bar"]
 
@@ -56,9 +59,11 @@ def test_distributed():
     assert isinstance(test, DistributedTest)
     assert test.client is client
     assert set(test.workers) == set(client.who_has(init))
-    # assert set(test.workers) == set(client.who_has(test))
     assert test.ten == 10
+    assert "ten" in test._constants
     assert test.values() == (1, 2)
+
+    assert test.range(5) == range(5)
 
     assert test.value.type == int
 

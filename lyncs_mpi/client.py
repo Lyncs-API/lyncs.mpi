@@ -39,7 +39,9 @@ class Client(_Client):
     automatizing the process of creating MPI-distributed dask workers.
     """
 
-    def __init__(self, num_workers=None, threads_per_worker=1, launch=None, out=None, err=None):
+    def __init__(
+        self, num_workers=None, threads_per_worker=1, launch=None, out=None, err=None
+    ):
         """
         Returns a Client connected to a cluster of `num_workers` workers.
         """

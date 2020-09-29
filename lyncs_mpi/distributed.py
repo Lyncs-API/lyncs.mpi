@@ -39,10 +39,12 @@ class Distributed:
         "_dask",
         "_workers",
         "_type",
+        "_constants",
     ]
 
     def __init__(self, dask, cls=None):
         self._dask = tuple(dask)
+        self._constants = dict()
         if cls:
             self._type = cls
 
@@ -96,7 +98,7 @@ class Distributed:
                 return ret
         if isinstance(fnc, property):
             return cls._get_finalize(fnc.fget)
-        return lambda _: _
+        return lambda _, **__: _
 
     @staticmethod
     def _insert_args(idxs, vals, *args):
@@ -148,6 +150,7 @@ class Distributed:
                     **dict(zip(keys[n_args:], vals[n_args:])),
                 ),
                 *vals,
+                pure=False,  # TODO: add support for pure functions
             ),
             cls=call if isclass(call) else None,
         )
@@ -155,6 +158,8 @@ class Distributed:
     def __getattr__(self, key):
         if key in dir(type(self)):
             return getattr(type(self), key).__get__(self)
+        if key in self._constants:
+            return self._constants[key]
         try:
             cls = self.type
             attr = getattr(cls, key)
@@ -166,7 +171,11 @@ class Distributed:
                 if interactive():
                     return wraps(attr)(fnc)
                 return fnc
-            return finalize(self._remote_call(getattr, self, key))
+            ftrs = self._remote_call(getattr, self, key)
+            try:
+                return finalize(ftrs, caller=self, key=key)
+            except TypeError:
+                return finalize(ftrs)
         except AttributeError:
             pass
         return self._remote_call(getattr, self, key)
