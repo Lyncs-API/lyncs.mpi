@@ -37,6 +37,10 @@ def test_not_launch():
         Client(launch=False)
 
     test = sh.mpirun(
-        "-n", 3, sys.executable, "-c", "from lyncs_mpi import Client; Client(1, launch=False)"
+        "-n",
+        3,
+        sys.executable,
+        "-c",
+        "from lyncs_mpi import Client; Client(1, launch=False)",
     )
     assert test.exit_code == 0
