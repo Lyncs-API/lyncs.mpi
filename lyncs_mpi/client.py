@@ -53,21 +53,19 @@ class Client(_Client):
         # pylint: disable=import-outside-toplevel,
         if not launch:
             # Then the script has been submitted in parallel with mpirun
-            num_workers = num_workers or default_comm().size - 1
-            assert (
-                default_comm().size == num_workers + 1
-            ), """
-            Error: (num_workers + 1) processes required.
-            The script has not been submitted on enough processes.
-            Got %d processes instead of %d.
-            """ % (
-                default_comm().size,
-                num_workers + 1,
-            )
+            num_workers = num_workers or default_comm().size - 2
+            if num_workers < 0 or default_comm().size != num_workers + 2:
+                raise RuntimeError(
+                    f"""
+                Error: (num_workers + 2) processes required.
+                The script has not been submitted on enough processes.
+                Got {default_comm().size} processes instead of {num_workers + 2}.
+                """
+                )
 
             initialize(nthreads=threads_per_worker, nanny=False)
 
-            _Client.__init__(self)
+            super().__init__()
 
         else:
             num_workers = num_workers or (multiprocessing.cpu_count() + 1)
@@ -96,7 +94,7 @@ class Client(_Client):
 
             atexit.register(self.close_server)
 
-            _Client.__init__(self, scheduler_file=self._dir + "/scheduler.json")
+            super().__init__(scheduler_file=self._dir + "/scheduler.json")
 
         # Waiting for all the workers to connect
         def handler(signum, frame):
@@ -153,8 +151,8 @@ class Client(_Client):
         if self.server is not None:
             self.close_server()
 
-        if hasattr(_Client, "__del__"):
-            _Client.__del__(self)
+        if hasattr(self, "_timeout"):
+            super().__del__()
 
     def who_has(self, *args, overload=True, **kwargs):
         """
@@ -167,14 +165,14 @@ class Client(_Client):
             If false the original who_has is used
         """
         if overload:
-            _workers = list(_Client.who_has(self, *args, **kwargs).values())
+            _workers = list(super().who_has(*args, **kwargs).values())
             workers = [w[0] for w in _workers if len(w) == 1]
             assert len(workers) == len(
                 _workers
             ), "More than one process has the same reference"
             return workers
 
-        return _Client.who_has(self, *args, **kwargs)
+        return super().who_has(*args, **kwargs)
 
     def select_workers(
         self, num_workers=None, workers=None, exclude=None, resources=None

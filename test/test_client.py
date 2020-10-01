@@ -1,3 +1,4 @@
+import sh
 from pytest import raises
 from lyncs_mpi import (
     Client,
@@ -28,3 +29,13 @@ def test_client():
 
     client = Client(num_workers=1)
     client.__del__()
+
+
+def test_not_launch():
+    with raises(RuntimeError):
+        Client(launch=False)
+
+    test = sh.mpirun(
+        "-n", 3, "python", "-c", "from lyncs_mpi import Client; Client(1, launch=False)"
+    )
+    assert test.exit_code == 0

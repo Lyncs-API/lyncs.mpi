@@ -130,3 +130,5 @@ dmypy.json
 
 *~
 .benchmarks
+*.lock
+dask-worker-space
