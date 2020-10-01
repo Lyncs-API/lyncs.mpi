@@ -1,5 +1,7 @@
-import sh
+import os
 import sys
+import sh
+import tempfile
 from pytest import raises
 from lyncs_mpi import (
     Client,
@@ -36,6 +38,8 @@ def test_not_launch():
     with raises(RuntimeError):
         Client(launch=False)
 
+    pwd = os.getcwd()
+    sh.cd(tempfile.mkdtemp())
     test = sh.mpirun(
         "-n",
         3,
@@ -43,4 +47,5 @@ def test_not_launch():
         "-c",
         "from lyncs_mpi import Client; Client(1, launch=False)",
     )
+    sh.cd(pwd)
     assert test.exit_code == 0
