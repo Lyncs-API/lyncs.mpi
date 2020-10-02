@@ -63,7 +63,7 @@ class Client(_Client):
                 """
                 )
 
-            initialize(nthreads=threads_per_worker, nanny=False)
+            initialize(nthreads=threads_per_worker, local_directory=tempfile.mkdtemp(), nanny=False)
 
             super().__init__()
 
