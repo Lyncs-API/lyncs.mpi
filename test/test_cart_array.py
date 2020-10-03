@@ -71,6 +71,23 @@ def test_array():
     assert arr.sum() == 32
     assert tuple(arr.dask.keys()) == tuple(val.key for val in arr.dask.values())
 
+    # Testing data movement
+    comm1 = client.create_comm(2).create_cart(
+        [
+            2,
+        ]
+    )
+    comm2 = client.create_comm(2, exclude=comm1.workers).create_cart(
+        [
+            2,
+        ]
+    )
+
+    arr1 = comm1.ones((4, 4, 4))
+    arr2 = comm2.ones((4, 4, 4))
+
+    assert (arr1 + arr2).sum() == 2 * 4 ** 3
+
     # Testing errors
     with raises(ValueError):
         arr = cart_zeros(cart, (6, 4), chunks=(2, 2))
