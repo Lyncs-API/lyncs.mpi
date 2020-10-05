@@ -9,6 +9,7 @@ __all__ = [
     "results",
 ]
 
+import uuid
 from itertools import chain
 from functools import wraps
 from inspect import isclass
@@ -40,6 +41,7 @@ class Distributed:
         "_workers",
         "_type",
         "_constants",
+        "_keys",
     ]
 
     def __init__(self, dask, cls=None):
@@ -59,6 +61,16 @@ class Distributed:
     def dask(self):
         "Returns the low-level dask objects"
         return self._dask
+
+    def __dask_graph__(self):
+        return dict(zip(self.__dask_keys__(), self.dask))
+
+    def __dask_keys__(self):
+        try:
+            return self._keys
+        except AttributeError:
+            self._keys = tuple(str(uuid.uuid4()) for _ in range(len(self)))
+            return self._keys
 
     @property
     def client(self):
