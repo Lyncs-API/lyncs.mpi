@@ -20,9 +20,9 @@ class DistributedTest(metaclass=DistributedClass):
         "Returns 10"
         return 10
 
-    def range(self, n) -> Global:
-        "Returns range(n)"
-        return range(n)
+    def range(self, length) -> Global:
+        "Returns range(length)"
+        return range(length)
 
     def values(self) -> Result:
         "Returns the values"
@@ -48,14 +48,17 @@ class CartesianTest(DistributedTest, metaclass=CartesianClass):
 
     @property
     def lshape(self) -> Constant:
+        "Local shape"
         return self._lshape
 
     @property
     def shape(self) -> Constant:
+        "Global shape"
         return self._shape
 
     @property
     def dtype(self) -> Constant:
+        "Array dtype"
         return self._dtype
 
     def ones(

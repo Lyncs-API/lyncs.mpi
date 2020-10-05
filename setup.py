@@ -1,6 +1,7 @@
 from lyncs_setuptools import setup, CMakeExtension
 
 requirements = [
+    "lyncs-setuptools",
     "mpi4py",
     "lyncs-cppyy",
     "lyncs-utils",

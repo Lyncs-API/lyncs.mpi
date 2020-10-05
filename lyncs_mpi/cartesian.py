@@ -11,7 +11,6 @@ from itertools import chain
 from dask.array import Array
 from .comm import CartComm
 from .distributed import Distributed, DistributedClass, Local
-from .cart_array import get_cart_arrays
 
 
 class Cartesian(Distributed):
@@ -66,9 +65,7 @@ class Cartesian(Distributed):
 
         # Looking for dask arrays
         get_arrays = (
-            lambda arr: get_cart_arrays(comms, arr, wait=False)
-            if isinstance(arr, Array)
-            else arr
+            lambda arr: comms.get_futures(arr) if isinstance(arr, Array) else arr
         )
         args = (get_arrays(arg) for arg in args)
         kwargs = {key: get_arrays(arg) for key, arg in kwargs.items()}
