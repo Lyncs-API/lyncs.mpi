@@ -123,3 +123,14 @@ class CartComm(Comm):
                 raise KeyError(f"{key} out of range {self.dims}")
             return self.coords.index(key)
         return super().index(key)
+
+    def normalize_dims(self):
+        "Removes non-distributed dimensions from dims. Returns tuple (index, size)"
+        return tuple((_i, _l) for _i, _l in enumerate(self.dims) if _l > 1)
+
+    def normalize_coords(self):
+        "Removes non-distributed dimensions from coords."
+        dims = self.normalize_dims()
+        return tuple(tuple(coord[_i] for _i, _ in dims) for coord in self.coords)
+
+    # NOTE: additional methods are implemented in cart_array.py
