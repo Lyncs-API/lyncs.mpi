@@ -77,3 +77,6 @@ def test_distributed():
 
     with raises(KeyError):
         test["bar"]
+
+    with raises(RuntimeError):
+        test.not_global()

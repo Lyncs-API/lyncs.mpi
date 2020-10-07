@@ -13,6 +13,7 @@ from abc import ABC
 from functools import partial
 from numpy import ndarray
 from dask.array import Array as daskArray
+from dask.array import from_array
 from .distributed import results, Distributed
 from .cartesian import Cartesian
 
@@ -56,11 +57,10 @@ class Array(Result):
             return partial(cls, **kwargs)
 
         assert len(args) == 1
-        ftrs = args[0]
-        assert isinstance(ftrs, Cartesian)
+        arg = args[0]
 
         array_kwargs = {}
-        for key in ("shape", "chunks", "dtype", "dims_axes"):
+        for key in ("shape", "chunks", "dtype"):
             if key not in kwargs:
                 continue
             val = kwargs[key]
@@ -69,7 +69,25 @@ class Array(Result):
                 val = val(kwargs["caller"])
             array_kwargs[key] = val
 
-        return ftrs.comm.array(ftrs, **array_kwargs)
+        if isinstance(arg, Cartesian):
+            return arg.comm.array(arg, **array_kwargs)
+
+        if not isinstance(arg, (ndarray, daskArray)):
+            raise TypeError(f"Unexpected type {type(arg)}")
+
+        shape = array_kwargs.get("shape", arg.shape)
+        if arg.shape != shape:
+            raise ValueError(
+                f"Not compatible shape. Got {arg.shape} but expected {shape}"
+            )
+        chunks = array_kwargs.get("chunks", kwargs["caller"].comm.get_chunks(shape))
+
+        if isinstance(arg, ndarray):
+            return from_array(arg, chunks=chunks)
+
+        if arg.chunksize != chunks:
+            return arg.rechunk(chunks)
+        return arg
 
 
 Array.register(ndarray)

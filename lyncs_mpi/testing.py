@@ -3,6 +3,7 @@ Just some simple classes used by the tests.
 (They are needed here to avoid pickling issues)
 """
 
+from random import random
 import numpy as np
 from .abc import Result, Global, Constant, Array
 from .distributed import DistributedClass
@@ -24,6 +25,10 @@ class DistributedTest(metaclass=DistributedClass):
         "Returns range(length)"
         return range(length)
 
+    def not_global(self) -> Global:
+        "Function for error testing"
+        return random()
+
     def values(self) -> Result:
         "Returns the values"
         return self.value
@@ -31,6 +36,12 @@ class DistributedTest(metaclass=DistributedClass):
 
 class CartesianTest(DistributedTest, metaclass=CartesianClass):
     "A cartesian distributed test class"
+
+    Field = Array(
+        shape=lambda self: self.shape,
+        chunks=lambda self: self.lshape,
+        dtype=lambda self: self.dtype,
+    )
 
     def __init__(self, lshape, value=None, dtype="int", comm=None):
         super().__init__(value)
@@ -61,16 +72,10 @@ class CartesianTest(DistributedTest, metaclass=CartesianClass):
         "Array dtype"
         return self._dtype
 
-    def ones(
-        self,
-    ) -> Array(
-        shape=lambda self: self.shape,
-        chunks=lambda self: self.lshape,
-        dtype=lambda self: self.dtype,
-    ):
+    def ones(self) -> Field:
         "Returns an array of ones"
         return np.ones(self.lshape, self.dtype)
 
-    def mul_by_value(self, arr) -> Array:
+    def mul_by_value(self, arr: Field) -> Array:
         "Multiplies the array by value"
         return arr * self.value

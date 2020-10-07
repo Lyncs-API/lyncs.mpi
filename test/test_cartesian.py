@@ -3,8 +3,9 @@ from lyncs_mpi import Client, CartComm
 from lyncs_mpi.distributed import *
 from lyncs_mpi.cartesian import *
 from lyncs_mpi.testing import DistributedTest, CartesianTest
-from dask.array import Array
+from dask.array import Array, ones
 from numpy import ndarray
+import numpy as np
 
 
 def test_commlocal():
@@ -66,6 +67,22 @@ def test_cartesian():
 
     test.value = 10
     assert (test.mul_by_value(arr) == arr * 10).all()
+
+    np_arr = np.ones(arr.shape)
+    assert (test.mul_by_value(np_arr) == np_arr * 10).all()
+
+    da_arr = ones(arr.shape, chunks=(1, 2))
+    assert (test.mul_by_value(np_arr) == np_arr * 10).all()
+
+    da_arr = ones(arr.shape, chunks=arr.chunksize)
+    assert (test.mul_by_value(np_arr) == np_arr * 10).all()
+
+    with raises(TypeError):
+        test.mul_by_value(1)
+
+    with raises(ValueError):
+        np_arr = np.ones((1, 1))
+        test.mul_by_value(np_arr)
 
     with raises(ValueError):
         cart2 = client.create_comm(1).create_cart((1,))
