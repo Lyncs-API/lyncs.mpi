@@ -15,7 +15,13 @@ from functools import wraps
 from inspect import isclass
 from distributed.client import Future
 from distributed import as_completed
-from lyncs_utils import isiterable, interactive, compute_property, apply_annotations
+from lyncs_utils import (
+    isiterable,
+    interactive,
+    compute_property,
+    apply_annotations,
+    select_kwargs,
+)
 
 
 def isdistributed(val):
@@ -137,7 +143,6 @@ class Distributed:
             if not callable(fnc):
                 raise TypeError(f"Type {type(fnc)} is not callable")
             call = fnc
-            args, kwargs = apply_annotations(fnc, *args, **kwargs)
 
         keys = []
         vals = []
@@ -173,24 +178,28 @@ class Distributed:
             cls=call if isclass(call) else None,
         )
 
+    def __callattr__(self, key, *args, **kwargs):
+        fnc = getattr(self.type, key)
+        caller = lambda fnc, arg: select_kwargs(fnc, arg, caller=self, key=key)
+        args, kwargs = apply_annotations(fnc, self, *args, _caller=caller, **kwargs)
+        finalize = self._get_finalize(fnc)
+        return caller(finalize, self._remote_call(fnc, *args, **kwargs))
+
     def __getattr__(self, key):
         if key in self._constants:
             return self._constants[key]
         if key in dir(type(self)):
             return getattr(type(self), key).__get__(self)
         try:
-            cls = self.type
-            attr = getattr(cls, key)
+            attr = getattr(self.type, key)
             finalize = self._get_finalize(attr)
             if callable(attr):
-                fnc = lambda *args, **kwargs: self._finalize(
-                    finalize, self._remote_call(attr, self, *args, **kwargs)
-                )
+                fnc = lambda *args, **kwargs: self.__callattr__(key, *args, **kwargs)
                 if interactive():
                     return wraps(attr)(fnc)
                 return fnc
-            return self._finalize(
-                finalize, self._remote_call(getattr, self, key), key=key
+            return select_kwargs(
+                finalize, self._remote_call(getattr, self, key), key=key, caller=self
             )
         except AttributeError:
             pass
