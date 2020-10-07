@@ -8,9 +8,8 @@ from math import ceil
 from dask.core import flatten
 from dask.array import Array, zeros, ones, empty, full
 from dask.array.core import normalize_chunks
+from lyncs_utils import add_to
 from .comm import CartComm
-
-add_to = lambda cls: lambda mth: setattr(cls, mth.__name__, mth)
 
 
 class KeyPatch(tuple):
@@ -41,24 +40,24 @@ def check_dims(self, nchunks):
 
 
 @add_to(CartComm)
-def get_futures(self, array):
+def get_futures(self, arr):
     """
-    Return the list of futures of an array associated to a cartesian communicator.
+    Return the list of futures of a Dask array associated to a cartesian communicator.
 
     Parameters
     ----------
-    array: Dask Array
+    arr: Dask Array
         A dask array distributed as the cartesian communicator. Note: the array can
         have more axes than the communicator as long as they are not distributed.
     """
-    if not isinstance(array, Array):
-        raise TypeError(f"Expected a Dask Array; got {type(array)}.")
+    if not isinstance(arr, Array):
+        raise TypeError(f"Expected a Dask Array; got {type(arr)}.")
 
-    self.check_dims(tuple(len(chunks) for chunks in array.chunks))
+    self.check_dims(tuple(len(chunks) for chunks in arr.chunks))
 
     idxs, _ = zip(*self.normalize_dims())
     coords = self.normalize_coords()
-    keys = tuple(flatten(array.__dask_keys__()))
+    keys = tuple(flatten(arr.__dask_keys__()))
     key_idx = {}
     for key in keys:
         coord = tuple(key[_i + 1] for _i in idxs)
@@ -67,10 +66,10 @@ def get_futures(self, array):
     keys = sorted(keys, key=key_idx.__getitem__)
     restrictions = {KeyPatch(key): worker for key, worker in zip(keys, self.workers)}
 
-    array = array.persist(workers=restrictions)
-    assert len(self) == len(array.dask.values())
+    arr = arr.persist(workers=restrictions)
+    assert len(self) == len(arr.dask.values())
 
-    return list(array.dask[key] for key in keys)
+    return list(arr.dask[key] for key in keys)
 
 
 @add_to(CartComm)
@@ -142,6 +141,19 @@ def array(self, futures, shape=None, chunks=None, dtype=None):
     return Array(dask, next(iter(dask.keys()))[0], chunks, dtype=dtype, shape=shape)
 
 
+@add_to(CartComm)
+def get_chunks(self, shape):
+    "Returns the chunks of shape compatible with the CartComm"
+    chunks = list(shape)
+    for _i, _l in self.normalize_dims():
+        if _i >= len(shape):
+            raise ValueError("Array shape smaller than distributed axes")
+        if _l > shape[_i]:
+            raise ValueError(f"Cannot chunk shape on axis {_i} in {_l} pieces")
+        chunks[_i] = ceil(chunks[_i] / _l)
+    return chunks
+
+
 def array_wrapper(mth):
     """
     Cartesian variant of %s (documentation follows).
@@ -157,26 +169,19 @@ def array_wrapper(mth):
     """
 
     def wrapper(self, shape, **kwargs):
-        chunks = list(shape)
-        for _i, _l in self.normalize_dims():
-            if _i >= len(shape):
-                raise ValueError(f"Array shape smaller than distributed axes")
-            if _l > shape[_i]:
-                raise ValueError(f"Cannot chunk shape on axis {_i} in {_l} pieces")
-            chunks[_i] = ceil(chunks[_i] / _l)
-
-        array = mth(shape, chunks=chunks, **kwargs)
+        chunks = self.get_chunks(shape)
+        arr = mth(shape, chunks=chunks, **kwargs)
 
         idxs, _ = zip(*self.normalize_dims())
         coords = self.normalize_coords()
         workers = self.workers
-        keys = flatten(array.__dask_keys__())
+        keys = flatten(arr.__dask_keys__())
         restrictions = {}
         for key in keys:
             coord = tuple(key[_i + 1] for _i in idxs)
             restrictions[KeyPatch(key)] = workers[coords.index(coord)]
 
-        return array.persist(workers=restrictions)
+        return arr.persist(workers=restrictions)
 
     wrapper.__name__ = "cart_" + mth.__name__
     wrapper.__doc__ = array_wrapper.__doc__ % mth.__name__ + mth.__doc__
