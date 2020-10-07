@@ -2,7 +2,7 @@
 Utils for interfacing to MPI libraries using mpi4py and dask
 """
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 from . import abc
 from .lib import *
