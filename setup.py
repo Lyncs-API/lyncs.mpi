@@ -21,4 +21,6 @@ setup(
     data_files=[(".", ["config.py.in"])],
     install_requires=requirements,
     extras_require={"test": ["pytest", "pytest-cov", "pytest-benchmark"]},
+    package_data={"lyncs_mpi": ["include/*.h"]},
+    include_package_data=True,
 )
