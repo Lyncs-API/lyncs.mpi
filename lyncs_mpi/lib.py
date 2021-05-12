@@ -18,8 +18,8 @@ PATHS = list(__path__)
 
 
 class MPILib(Lib):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def load(self):
+        super().load()
 
         from mpi4py import MPI
 
