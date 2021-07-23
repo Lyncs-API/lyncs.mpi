@@ -5,29 +5,46 @@ __all__ = [
     "default_comm",
     "initialized",
     "finalized",
+    "get_comm",
+    "MPI",
 ]
 
-from ctypes import c_int
-from lyncs_cppyy import Lib
 from array import array
+from ctypes import c_int
 import numpy as np
+from lyncs_cppyy import Lib
+from lyncs_utils import static_property
+from lyncs_cppyy.ll import cast
 from . import __path__
 from .config import MPI_INCLUDE_DIRS, MPI_LIBRARIES
 
 PATHS = list(__path__)
 
 
+def MPI():
+    from mpi4py import MPI
+
+    return MPI
+
+
+def get_comm(comm):
+    assert isinstance(comm, MPI().Comm)
+    return lib.MPI_Comm(MPI()._handleof(comm))
+
+
 class MPILib(Lib):
     def load(self):
         super().load()
 
-        from mpi4py import MPI
-
-        if MPI.get_vendor() != self.get_vendor():
-            print("mpi4py vendor:", MPI.get_vendor())
+        if MPI().get_vendor() != self.get_vendor():
+            print("mpi4py vendor:", MPI().get_vendor())
             print("lyncs_mpi vendor:", self.get_vendor())
             raise RuntimeError(
-                "mpi4py and lyncs_mpi have not been compiled with the same MPI"
+                """
+            mpi4py and lyncs_mpi are not using the same MPI
+            Try to recompily mpi4py using:
+            pip install --force-reinstall --no-cache-dir mpi4py
+            """
             )
 
     def get_vendor(self):
