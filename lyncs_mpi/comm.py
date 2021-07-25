@@ -7,6 +7,7 @@ __all__ = [
 
 from lyncs_utils import compute_property
 from .distributed import Distributed, results
+from .lib import MPI
 
 
 class Comm(Distributed):
@@ -22,9 +23,6 @@ class Comm(Distributed):
     @property
     def type(self):
         "Returns the MPI type of the class"
-        # pylint: disable=import-outside-toplevel
-        from mpi4py import MPI
-
         return MPI.Comm
 
     @property
@@ -85,9 +83,6 @@ class CartComm(Comm):
     @property
     def type(self):
         "Returns the MPI type of the class"
-        # pylint: disable=import-outside-toplevel
-        from mpi4py import MPI
-
         return MPI.Cartcomm
 
     @property

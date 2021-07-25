@@ -13,31 +13,26 @@ from array import array
 from ctypes import c_int
 import numpy as np
 from lyncs_cppyy import Lib
-from lyncs_utils import static_property
+from lyncs_utils import static_property, lazy_import
 from lyncs_cppyy.ll import cast
 from . import __path__
 from .config import MPI_INCLUDE_DIRS, MPI_LIBRARIES
 
 PATHS = list(__path__)
-
-
-def MPI():
-    from mpi4py import MPI
-
-    return MPI
+MPI = lazy_import("mpi4py.MPI")
 
 
 def get_comm(comm):
-    assert isinstance(comm, MPI().Comm)
-    return lib.MPI_Comm(MPI()._handleof(comm))
+    assert isinstance(comm, MPI.Comm)
+    return lib.MPI_Comm(MPI._handleof(comm))
 
 
 class MPILib(Lib):
     def load(self):
         super().load()
 
-        if MPI().get_vendor() != self.get_vendor():
-            print("mpi4py vendor:", MPI().get_vendor())
+        if MPI.get_vendor() != self.get_vendor():
+            print("mpi4py vendor:", MPI.get_vendor())
             print("lyncs_mpi vendor:", self.get_vendor())
             raise RuntimeError(
                 """
@@ -70,11 +65,9 @@ COMM = None
 
 def default_comm():
     "Returns the default communicator to be used (MPI_COMM_WORLD by default)"
-    # pylint: disable=import-outside-toplevel,no-name-in-module,redefined-outer-name,global-statement
     global COMM
     if not COMM:
-        from mpi4py.MPI import COMM_WORLD as COMM
-
+        return MPI.COMM_WORLD
     return COMM
 
 

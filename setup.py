@@ -5,7 +5,7 @@ requirements = [
     "lyncs-setuptools",
     "mpi4py",
     "lyncs-cppyy",
-    "lyncs-utils",
+    "lyncs-utils>=0.2.2",
     "dask",
     "distributed",
     "dask[array]",
