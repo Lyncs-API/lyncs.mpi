@@ -54,7 +54,6 @@ pip install [--user] lyncs_mpi
 
 ## Documentation
 
-
 In this package we implement several low-level tools for supporting classes distributed over MPI.
 These are described in this [guide]() for developers. In the following we describe the high-level tools
 provided in this package.
