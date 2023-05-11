@@ -1,10 +1,11 @@
+import glob
 from lyncs_setuptools import setup, CMakeExtension
 
 requirements = [
     "lyncs-setuptools",
     "mpi4py",
     "lyncs-cppyy",
-    "lyncs-utils",
+    "lyncs-utils>=0.2.2",
     "dask",
     "distributed",
     "dask[array]",
@@ -18,7 +19,12 @@ setup(
     "lyncs_mpi",
     ext_modules=[CMakeExtension("lyncs_mpi.lib", ".")],
     exclude=["*.config"],
-    data_files=[(".", ["config.py.in"])],
+    data_files=[
+        (".", ["config.py.in"]),
+        ("lyncs_mpi", glob.glob("lyncs_mpi/include/*.h")),
+    ],
     install_requires=requirements,
     extras_require={"test": ["pytest", "pytest-cov", "pytest-benchmark"]},
+    package_data={"lyncs_mpi": ["include/*.h"]},
+    include_package_data=True,
 )
